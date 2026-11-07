@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+app/node_modules/
+backend/node_modules/
+backend/src/node_modules/
+
+# Build outputs
+app/dist/
+*.zip
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# AWS / deployment artifacts
+lambda.zip
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+
+# Misc
+exported-session/
+convert_session.py
+kiro-session-*.zip

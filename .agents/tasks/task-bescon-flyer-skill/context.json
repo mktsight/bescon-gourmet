@@ -1,0 +1,25 @@
+{
+  "project_type": "Not a code project and NOT a git repo: a folder of event flyers (SVG + PNG) for ベスコングルメ部, plus a working Node flyer generator in .agents/flyer/. Deliverable is a Kiro Skill directory.",
+  "language": "JavaScript (Node 20, CommonJS, stdlib only) for scripts; Japanese Markdown for SKILL.md/references; JSON for specs",
+  "build_system": "None. Run scripts directly with `node` (/usr/local/bin/node v20.19.0, on PATH). No npm, no package.json, no third-party deps. PNG rendering: `sips -s format png X.svg --out X.png` (/usr/bin/sips, deterministic output).",
+  "test_framework": "node:test (built-in). Tests in /Users/makotosaito/bescon/.kiro/skills/bescon-flyer/tests/*.test.js",
+  "build_command": "node /Users/makotosaito/bescon/.kiro/skills/bescon-flyer/scripts/build.js <spec.json> --out /tmp/bescon-skill-test --png",
+  "test_command": "node --test /Users/makotosaito/bescon/.kiro/skills/bescon-flyer/tests/",
+  "verification_instructions": "1) For each examples/{yamadera,zao,kaminoyama,ekimae}.json build into /tmp/bescon-skill-test with --png, then `cmp` the SVG and PNG against /Users/makotosaito/bescon/BCG企画_{山寺,蔵王ライザ,上山,山形駅前}編.{svg,png} — all 8 must be byte-identical (verified feasible during planning: old generator output == originals except <title>, and sips PNG output == original PNGs). 2) `node scripts/texts.js new.svg` vs original → diff empty. 3) `node --test tests/` passes. 4) View every newly rendered PNG with read_file (mandatory visual check: overlap, clipping, wrapping, weekday, kcal, trail). 5) `cd /Users/makotosaito/bescon && shasum -a 256 -c .agents/tasks/task-bescon-flyer-skill/originals.sha256` all OK.",
+  "snapshot_or_generated_files": "None checked in. All generated SVG/PNG test outputs go to /tmp/bescon-skill-test (exists, must be emptied at the end). Never write flyers into the workspace root during this task.",
+  "environment_constraints": "Do NOT modify/overwrite /Users/makotosaito/bescon/BCG企画_*編.svg/.png, 旧デザイン/, or .agents/flyer/* (checksums in .agents/tasks/task-bescon-flyer-skill/originals.sha256). Do NOT run the old .agents/flyer/build.js in place (it writes 開催案内*.svg into the workspace root) — copy it to /tmp if you need it. Not a git repo: do not git init/commit. sips: no `dy`, no filter, no tspan styling, no font-weight=bold (use 600); gradients/clipPath/pattern/opacity/dasharray OK. Kiro chat shows Japanese inside code blocks as tofu — when reporting to the user, keep Japanese out of code blocks.",
+  "contribution_requirements": "No repo docs (no README/AGENTS.md/steering). From the user: design must stay identical to the 4 reference flyers; all user-facing docs in Japanese; stdlib only; titles use 「〇〇編」 as the accent, 「第N回 ベスコングルメ部」 muted; SVG <title> == PNG/file base name (BCG企画_〇〇編).",
+  "key_patterns": "Old generator: build.js build(cfg) emits the whole SVG via template strings; lib.js holds a module-level defs registry G (resetDefs/lg/rg/clip/pattern assign ids g0,g1,c2… in call order) — order must be scene() → reward() → layout to stay byte-identical, and all snippets must share ONE lib instance (hence ctx injection, never require lib from a snippet). f(v)=round to 0.1. tw(s,size): chars < U+2000 count 0.6em else 1em. Scenes draw in 820x330 panel coords with seeded rng (L.rng(seed)); rewards draw centered at 0,0 clipped to r=100 then scaled 1.18 at (690,160). Team jackets: #b8432f/#3a5f8f/#3f7a55. data.js holds all text; timeline labels use '|' for line breaks; rows[].sub is the right-aligned note.",
+  "relevant_files": [
+    "/Users/makotosaito/bescon/.agents/tasks/plan.md (authoritative detailed plan: schema, fit rules, palettes, CLI, contract, SKILL.md content)",
+    "/Users/makotosaito/bescon/.agents/flyer/build.js (layout to port into scripts/layout.js)",
+    "/Users/makotosaito/bescon/.agents/flyer/data.js (exact text for the 4 example specs)",
+    "/Users/makotosaito/bescon/.agents/flyer/lib.js (copy verbatim)",
+    "/Users/makotosaito/bescon/.agents/flyer/people.js (copy verbatim)",
+    "/Users/makotosaito/bescon/.agents/flyer/food.js (split into rewards/_parts.js + 4 rewards)",
+    "/Users/makotosaito/bescon/.agents/flyer/scene_{yamadera,zao,kaminoyama,ekimae}.js (convert to illustrations/scenes/*.js)",
+    "/Users/makotosaito/bescon/BCG企画_{山寺,蔵王ライザ,上山,山形駅前}編.{svg,png} (byte-identity references)",
+    "/Users/makotosaito/bescon/ベスコングルメ部-チャット履歴.md (tofu-in-code-block rule, shop-research habits)"
+  ],
+  "directory_structure": "/Users/makotosaito/bescon: 4 final flyers BCG企画_*編.svg/.png at root; 旧デザイン/ old designs; .agents/flyer/ working generator; .agents/tasks/ plan + FEAT artifacts; .kiro/skills/bescon-flyer/ (empty, target). Target tree inside the skill: SKILL.md, references/{spec,derivation,illustration}.md, scripts/{build,spec,fit,layout,texts,lib,people}.js, illustrations/scenes/{yamadera,zao,kaminoyama,ekimae,_template}.js, illustrations/rewards/{_parts,soba,pizza,wine,beef,_template}.js, assets/palettes.json, examples/{yamadera,zao,kaminoyama,ekimae,minimal-example}.json, tests/*.test.js"
+}

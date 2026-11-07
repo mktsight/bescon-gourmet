@@ -1,0 +1,7 @@
+{
+  "task_id": "task-bescon-flyer-skill",
+  "task_description": "Create the workspace Kiro Skill /Users/makotosaito/bescon/.kiro/skills/bescon-flyer: a JSON-spec-driven Node (stdlib-only) generator + illustration library that reproduces the 4 BCG企画_*編 flyers byte-for-byte, plus Japanese SKILL.md/references that turn minimal event input into new flyers (SVG + 2x PNG via sips) in the identical design. Full detail: /Users/makotosaito/bescon/.agents/tasks/plan.md",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200" font-family="'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8ecd6"/>
+      <stop offset="1" stop-color="#eff8ee"/>
+    </linearGradient>
+    <linearGradient id="banner" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2e8b57"/>
+      <stop offset="1" stop-color="#4fb07a"/>
+    </linearGradient>
+    <linearGradient id="beer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe08a"/>
+      <stop offset="1" stop-color="#f6b73c"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="1200" fill="#fbfdfb"/>
+
+  <!-- top banner -->
+  <rect x="0" y="0" width="900" height="130" fill="url(#banner)"/>
+  <text x="450" y="60" text-anchor="middle" font-size="46" font-weight="bold" fill="#fff">第1回 ベスコングルメ部</text>
+  <text x="450" y="105" text-anchor="middle" font-size="30" font-weight="bold" fill="#e2f3e8">公園を歩いて、整った体で山形牛と乾杯</text>
+
+  <!-- illustration area -->
+  <rect x="40" y="160" width="820" height="430" rx="20" fill="url(#sky)" stroke="#cfe6cf" stroke-width="2"/>
+
+  <!-- sun -->
+  <circle cx="760" cy="235" r="40" fill="#ffd34d"/>
+
+  <!-- park ground -->
+  <ellipse cx="300" cy="545" rx="260" ry="40" fill="#9ccb86"/>
+
+  <!-- trees -->
+  <g>
+    <rect x="150" y="430" width="14" height="60" fill="#8a5a2b"/>
+    <circle cx="157" cy="420" r="40" fill="#4fa05c"/>
+    <rect x="470" y="440" width="14" height="55" fill="#8a5a2b"/>
+    <circle cx="477" cy="432" r="34" fill="#5bb06a"/>
+  </g>
+
+  <!-- castle moat gate (霞城公園/山形城跡) -->
+  <rect x="250" y="400" width="110" height="60" fill="#cdbfa6"/>
+  <polygon points="238,400 372,400 305,368" fill="#8a6239"/>
+  <rect x="292" y="425" width="26" height="35" fill="#5d3410"/>
+
+  <!-- runners (3 members) -->
+  <g>
+    <circle cx="210" cy="520" r="12" fill="#f4c28a"/>
+    <rect x="202" y="532" width="16" height="24" rx="6" fill="#e8502e"/>
+    <circle cx="250" cy="516" r="12" fill="#f4c28a"/>
+    <rect x="242" y="528" width="16" height="24" rx="6" fill="#2e78e8"/>
+    <circle cx="290" cy="520" r="12" fill="#f4c28a"/>
+    <rect x="282" y="532" width="16" height="24" rx="6" fill="#2eae63"/>
+  </g>
+
+  <!-- reward: grilled beef + beer -->
+  <g transform="translate(600,420)">
+    <!-- grill plate -->
+    <ellipse cx="80" cy="95" rx="80" ry="30" fill="#444"/>
+    <ellipse cx="80" cy="88" rx="80" ry="30" fill="#5a5a5a"/>
+    <!-- meat slices -->
+    <rect x="40" y="72" width="34" height="22" rx="5" fill="#b5452f"/>
+    <rect x="80" y="80" width="34" height="22" rx="5" fill="#c25237"/>
+    <rect x="62" y="92" width="34" height="18" rx="5" fill="#a83c2a"/>
+    <!-- grill lines -->
+    <line x1="30" y1="88" x2="130" y2="88" stroke="#2b2b2b" stroke-width="2"/>
+    <!-- beer mug -->
+    <rect x="150" y="30" width="48" height="80" rx="6" fill="url(#beer)" stroke="#e0a62b" stroke-width="2"/>
+    <rect x="150" y="22" width="48" height="18" rx="8" fill="#fffdf5"/>
+    <rect x="196" y="48" width="18" height="40" rx="8" fill="none" stroke="#e0a62b" stroke-width="6"/>
+  </g>
+
+  <!-- details card -->
+  <rect x="40" y="620" width="820" height="315" rx="18" fill="#fff" stroke="#d7ecd7" stroke-width="2"/>
+  <text x="70" y="665" font-size="30" font-weight="bold" fill="#2e8b57">開催概要</text>
+  <g font-size="25" fill="#333">
+    <text x="70" y="712">日時：2026年11月14日（土）9:30集合</text>
+    <text x="70" y="752">集合：JR山形駅　※全員が集まりやすいアクセス重視</text>
+    <text x="70" y="792">運動：霞城公園（山形城跡）の周回ウォーク／ジョグ</text>
+    <text x="70" y="832">食事：駅前の山形牛の店で焼肉＆乾杯</text>
+    <text x="70" y="872">持ち物：歩きやすい靴・動ける服装・飲み物</text>
+    <text x="70" y="898" font-size="19" fill="#777">※移動負担が小さく短時間でも開催できる、集まりやすい回。</text>
+    <text x="70" y="922" font-size="19" fill="#777">　9名・土曜昼は人気店が混むため事前予約を。二次会もしやすい立地。</text>
+  </g>
+
+  <!-- timeline card -->
+  <rect x="40" y="950" width="820" height="210" rx="18" fill="#f2faf4" stroke="#d7ecd7" stroke-width="2"/>
+  <text x="70" y="992" font-size="28" font-weight="bold" fill="#2e8b57">当日の流れ</text>
+  <g font-size="21" fill="#444">
+    <text x="70" y="1030">9:30　山形駅に集合・準備運動</text>
+    <text x="70" y="1060">9:45　霞城公園を周回ウォーク／ジョグ</text>
+    <text x="70" y="1090">11:00　公園で記念撮影</text>
+    <text x="490" y="1060">11:45　駅前の店へ移動</text>
+    <text x="490" y="1090">12:00　山形牛で乾杯・次回ゴール相談</text>
+  </g>
+
+  <text x="450" y="1140" text-anchor="middle" font-size="19" fill="#999">幹事：部長　／　参加可否はこちらまで</text>
+</svg>
