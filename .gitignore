@@ -31,3 +31,14 @@ npm-debug.log*
 exported-session/
 convert_session.py
 kiro-session-*.zip
+
+# IDE / Agent work files
+.agents/
+.kiro/
+
+# Event flyers / old design
+BCG企画_*.png
+BCG企画_*.svg
+旧デザイン/
+qrcode.png
+ベスコングルメ部-チャット履歴.md
