@@ -25,6 +25,12 @@ cat > /tmp/dynamo-policy.json << EOF
 EOF
 aws iam put-role-policy --role-name $ROLE --policy-name bescon-dynamo-policy \
   --policy-document file:///tmp/dynamo-policy.json
+# 署名付きPUT URLの署名者(Lambdaロール)にPutObject権限が無いと、写真・アイコンのPUTが403になる
+cat > /tmp/s3-upload-policy.json << EOF
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:PutObject"],"Resource":["arn:aws:s3:::bescon-gourmet-uploads-$ACCOUNT/posts/*","arn:aws:s3:::bescon-gourmet-uploads-$ACCOUNT/profiles/*"]}]}
+EOF
+aws iam put-role-policy --role-name $ROLE --policy-name bescon-s3-upload-policy \
+  --policy-document file:///tmp/s3-upload-policy.json
 
 sleep 12
 

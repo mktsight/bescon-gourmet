@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import TabBar from '../components/TabBar'
+import Avatar from '../components/Avatar'
 import { getMembers, getMember } from '../services/api'
 
 interface Member {
@@ -13,6 +14,7 @@ interface MemberDetail {
   userId: string
   name: string
   bio?: string
+  iconUrl?: string | null
   recentPosts?: Array<{ exerciseType: string; distance: number; calories: number; createdAt: string }>
 }
 
@@ -32,7 +34,7 @@ export default function MembersPage() {
 
   async function handleSelect(userId: string) {
     setDetailLoading(true)
-    setSelected({ userId, name: '', recentPosts: [] })
+    setSelected({ userId, name: '', iconUrl: members.find(m => m.userId === userId)?.iconUrl, recentPosts: [] })
     try { setSelected(await getMember(userId)) } catch {}
     setDetailLoading(false)
   }
@@ -51,9 +53,7 @@ export default function MembersPage() {
             {members.map(m => (
               <button key={m.userId} onClick={() => handleSelect(m.userId)}
                 className="w-full bg-sp-card rounded-2xl border border-sp-border p-4 flex items-center gap-3 hover:border-primary/30 transition-colors text-left">
-                <div className="w-12 h-12 rounded-2xl bg-sp-card2 flex items-center justify-center text-lg font-black text-white shrink-0">
-                  {(m.name ?? '?').slice(0, 1)}
-                </div>
+                <Avatar src={m.iconUrl} name={m.name ?? '?'} lazy className="w-12 h-12 rounded-2xl" fallbackClassName="bg-sp-card2 text-lg text-white" />
                 <div className="flex-1 min-w-0">
                   <div className="font-black text-white">{m.name}</div>
                   {m.bio && <div className="text-xs text-sp-muted truncate">{m.bio}</div>}
@@ -72,9 +72,7 @@ export default function MembersPage() {
             <div className="w-10 h-1 bg-sp-border rounded-full mx-auto mb-5" />
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-xl font-black text-primary">
-                  {(selected.name ?? '?').slice(0, 1)}
-                </div>
+                <Avatar src={selected.iconUrl} name={selected.name ?? '?'} className="w-12 h-12 rounded-2xl" fallbackClassName="bg-primary/20 text-xl text-primary" />
                 <div>
                   <div className="font-black text-white">{selected.name}</div>
                   {selected.bio && <div className="text-xs text-sp-muted">{selected.bio}</div>}

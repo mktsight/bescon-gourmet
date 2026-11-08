@@ -5,7 +5,7 @@ import { useRecord } from '../contexts/RecordContext'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
-  const { isOpen, close } = useRecord()
+  const { isOpen, close, notifyPosted } = useRecord()
   const { user } = useAuth()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [form, setForm] = useState({ exerciseType: 'running', distance: '', duration: '', memo: '' })
@@ -14,6 +14,7 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
 
   if (!isOpen) return null
 
@@ -33,12 +34,20 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
 
   async function handleSubmit() {
     if (submitting) return
+    setError('')
     setSubmitting(true)
     try {
       let imageUrl: string | null = null
       if (photoFile) {
         setUploading(true)
-        try { imageUrl = await uploadPhoto(photoFile) } catch {}
+        try {
+          imageUrl = await uploadPhoto(photoFile)
+        } catch {
+          setUploading(false)
+          setError('写真のアップロードに失敗しました。もう一度お試しください')
+          setSubmitting(false)
+          return
+        }
         setUploading(false)
       }
       await createPost({
@@ -56,14 +65,18 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
         setForm({ exerciseType: 'running', distance: '', duration: '', memo: '' })
         setPhotoFile(null)
         setPhotoPreview(null)
+        notifyPosted()
         onPosted?.()
       }, 2000)
-    } catch {}
+    } catch {
+      setError('投稿に失敗しました。もう一度お試しください')
+    }
     setSubmitting(false)
   }
 
   function handleClose() {
     close()
+    setError('')
     setStep(1)
     setForm({ exerciseType: 'running', distance: '', duration: '', memo: '' })
     setPhotoFile(null)
@@ -210,15 +223,16 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
                   </div>
                 )}
                 <div>
-                  <label className="text-xs text-sp-muted font-semibold uppercase tracking-widest block mb-2">メモ（任意）</label>
+                  <label className="text-xs text-sp-muted font-semibold uppercase tracking-widest block mb-2">コメント（任意）</label>
                   <textarea
                     value={form.memo}
                     onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
                     rows={2}
-                    placeholder="今日のコンディション、感想など..."
+                    placeholder="今日の感想をみんなにシェアしよう..."
                     className="w-full bg-sp-card2 border-0 text-white text-sm rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-sp-muted"
                   />
                 </div>
+                {error && <p className="text-sm text-red-400">{error}</p>}
                 <div className="flex gap-3">
                   <button onClick={() => setStep(2)} className="flex-1 bg-sp-card2 text-sp-muted rounded-2xl py-4 font-bold">← 戻る</button>
                   <button

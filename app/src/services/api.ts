@@ -29,6 +29,8 @@ export interface Post {
   postId: string
   userId: string
   userName: string
+  /** 投稿者の現在のプロフィールアイコン（サーバー側で付与。未設定・未デプロイ時は無い） */
+  userIconUrl?: string | null
   exerciseType: 'walking' | 'running'
   distance: number
   duration: number
@@ -196,4 +198,4 @@ export async function uploadPhoto(file: File, folder = 'posts'): Promise<string>
 // Members
 export const getMembers = () => req<{ items: { userId: string; name: string; bio?: string; iconUrl?: string | null }[] }>('/members')
 export const getMember = (userId: string) =>
-  req<{ userId: string; name: string; bio?: string; recentPosts?: Array<{ exerciseType: string; distance: number; calories: number; createdAt: string }> }>(`/members/${userId}`)
+  req<{ userId: string; name: string; bio?: string; iconUrl?: string | null; recentPosts?: Array<{ exerciseType: string; distance: number; calories: number; createdAt: string }> }>(`/members/${userId}`)

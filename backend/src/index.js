@@ -3,7 +3,8 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb')
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
-const s3Client = new S3Client({ region: 'ap-northeast-1' })
+// 署名付きURLに空ボディのCRC32が含まれ、実ファイルのPUTがBadDigestで失敗するのを防ぐ
+const s3Client = new S3Client({ region: 'ap-northeast-1', requestChecksumCalculation: 'WHEN_REQUIRED' })
 const UPLOAD_BUCKET = 'bescon-gourmet-uploads-897729110502'
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'ap-northeast-1' }))
@@ -52,6 +53,23 @@ const serverError = () => r(500, { error: 'Internal server error' })
 
 function newId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+// 投稿者の「現在の」プロフィールアイコンを取得する（投稿時点の値を固定しないため、リクエストごとに結合する）。
+// 重複を除いたuserIdごとにGetItemを並列実行（投稿数ではなく投稿者数に比例）。
+// BatchGetItemはLambdaロールに未許可のため使わない。失敗してもアイコンなし扱いで投稿一覧は返す。
+async function loadUserIcons(userIds) {
+  const ids = [...new Set(userIds.filter(Boolean))]
+  const entries = await Promise.all(ids.map(async id => {
+    try {
+      const { Item } = await ddb.send(new GetCommand({ TableName: T.users, Key: { userId: id }, ProjectionExpression: 'iconUrl' }))
+      return [id, Item?.iconUrl ?? null]
+    } catch (e) {
+      console.warn('Icon lookup failed:', e)
+      return [id, null]
+    }
+  }))
+  return new Map(entries)
 }
 
 async function createNotification(recipientId, type, actorId, actorName, postId, message) {
@@ -111,7 +129,8 @@ exports.handler = async (event) => {
         }))
         likes.forEach(l => likedPostIds.add(l.postId))
       }
-      return ok({ items: top.map(p => ({ ...p, likedByMe: likedPostIds.has(p.postId) })) })
+      const icons = await loadUserIcons(top.map(p => p.userId))
+      return ok({ items: top.map(p => ({ ...p, userIconUrl: icons.get(p.userId) ?? null, likedByMe: likedPostIds.has(p.postId) })) })
     }
 
     if (routeKey === 'POST /posts') {

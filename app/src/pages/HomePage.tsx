@@ -1,27 +1,44 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import TabBar from '../components/TabBar'
 import PostCard from '../components/PostCard'
+import LatestPostHero from '../components/LatestPostHero'
+import { useRecord } from '../contexts/RecordContext'
 import { fetchPosts, fetchNotifications, markAllRead, type Notification } from '../services/api'
 import type { Post } from '../services/api'
 
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const { postedVersion } = useRecord()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotif, setShowNotif] = useState(false)
 
   useEffect(() => {
     load()
+  }, [postedVersion])
+
+  useEffect(() => {
     loadNotifications()
   }, [])
 
+  // 写真つきの最新投稿をヒーローにする。写真つきが1件もなければ最新の投稿
+  const hero = useMemo(() => {
+    const sorted = [...posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return sorted.find(p => !!p.imageUrl) ?? sorted[0] ?? null
+  }, [posts])
+  const initialLoading = loading && posts.length === 0
+
   async function load() {
     setLoading(true)
+    setError(false)
     try {
       const res = await fetchPosts()
       setPosts(res.items)
-    } catch {}
+    } catch {
+      setError(true)
+    }
     setLoading(false)
   }
 
@@ -61,23 +78,33 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-lg mx-auto">
+        {error && posts.length > 0 && <p className="text-xs text-red-400 px-4 pt-2">更新に失敗しました</p>}
+        <LatestPostHero
+          key={hero?.postId}
+          post={hero}
+          loading={initialLoading}
+          error={error && posts.length === 0}
+          onRetry={load}
+        />
         <div className="pb-4">
-          {loading ? (
-            <div className="text-center py-16 text-sp-muted text-sm">読み込み中...</div>
-          ) : posts.length === 0 ? (
-            <div className="mx-4 bg-sp-card rounded-3xl border border-sp-border p-10 text-center">
+          {!loading && !error && posts.length === 0 && (
+            <div className="mx-4 mt-4 bg-sp-card rounded-3xl border border-sp-border p-10 text-center">
               <div className="text-5xl mb-3">🏃</div>
               <p className="text-white font-black">最初の記録をしよう！</p>
               <p className="text-sp-muted text-sm mt-1">中央のボタンから運動を記録できます</p>
             </div>
-          ) : (
-            posts.map(p => (
-              <PostCard
-                key={p.postId}
-                post={p}
-                onUpdate={updated => setPosts(prev => prev.map(x => x.postId === updated.postId ? updated : x))}
-              />
-            ))
+          )}
+          {posts.length > 0 && (
+            <>
+              <h2 className="px-4 pt-5 pb-2 text-xs font-semibold uppercase tracking-widest text-sp-muted">タイムライン</h2>
+              {posts.map(p => (
+                <PostCard
+                  key={p.postId}
+                  post={p}
+                  onUpdate={updated => setPosts(prev => prev.map(x => x.postId === updated.postId ? updated : x))}
+                />
+              ))}
+            </>
           )}
         </div>
       </main>

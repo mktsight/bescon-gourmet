@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react'
 import type { Post, Comment } from '../services/api'
+import { timeAgo } from '../services/time'
+import Avatar from './Avatar'
 import { likePost, unlikePost, postComment, fetchComments } from '../services/api'
-
-function timeAgo(iso: string) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000
-  if (diff < 60) return 'たった今'
-  if (diff < 3600) return `${Math.floor(diff / 60)}分前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}時間前`
-  return `${Math.floor(diff / 86400)}日前`
-}
 
 interface Props {
   post: Post
@@ -66,9 +60,13 @@ export default function PostCard({ post, onUpdate }: Props) {
     <div className="bg-sp-card border-b border-sp-border">
       {/* ヘッダー */}
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${isRunning ? 'bg-primary/30' : 'bg-sp-blue/30'}`}>
-          {post.userName.slice(0, 1)}
-        </div>
+        <Avatar
+          src={post.userIconUrl}
+          name={post.userName}
+          lazy
+          className="w-9 h-9 rounded-full"
+          fallbackClassName={`text-sm text-white ${isRunning ? 'bg-primary/30' : 'bg-sp-blue/30'}`}
+        />
         <div className="flex-1 min-w-0">
           <div className="font-black text-sm text-white">{post.userName}</div>
           <div className="text-xs text-sp-muted">{timeAgo(post.createdAt)}</div>
@@ -113,9 +111,11 @@ export default function PostCard({ post, onUpdate }: Props) {
         <button
           onClick={handleLike}
           disabled={liking}
-          className={`text-xl transition-colors ${post.likedByMe ? 'text-red-400' : 'text-white hover:text-red-400'}`}
+          aria-label={post.likedByMe ? 'いいねを取り消す' : 'いいね'}
+          aria-pressed={post.likedByMe}
+          className={`text-xl transition ${post.likedByMe ? 'scale-110' : 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100'}`}
         >
-          {post.likedByMe ? '❤️' : '🤍'}
+          👍
         </button>
         <button className="text-white text-xl">💬</button>
         {post.imageUrl && post.distance > 0 && (
