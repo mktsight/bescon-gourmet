@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import TabBar from '../components/TabBar'
 import PostCard from '../components/PostCard'
 import LatestPostHero from '../components/LatestPostHero'
+import TeamSwitcher from '../components/TeamSwitcher'
 import { useRecord } from '../contexts/RecordContext'
+import { useTeam } from '../contexts/team-context'
 import { fetchPosts, fetchNotifications, markAllRead, type Notification } from '../services/api'
 import type { Post } from '../services/api'
 
@@ -11,13 +13,16 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const { postedVersion } = useRecord()
+  const teamId = useTeam().currentTeam!.teamId
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotif, setShowNotif] = useState(false)
+  const [refreshToken, setRefreshToken] = useState(0)
+  const loadSeq = useRef(0)
 
   useEffect(() => {
-    load()
-  }, [postedVersion])
+    load(teamId)
+  }, [teamId, postedVersion])
 
   useEffect(() => {
     loadNotifications()
@@ -25,18 +30,22 @@ export default function HomePage() {
 
   // 写真つきの最新投稿をヒーローにする。写真つきが1件もなければ最新の投稿
   const hero = useMemo(() => {
-    const sorted = [...posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const sorted = [...posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.postId.localeCompare(a.postId))
     return sorted.find(p => !!p.imageUrl) ?? sorted[0] ?? null
   }, [posts])
   const initialLoading = loading && posts.length === 0
 
-  async function load() {
+  async function load(tid: string) {
+    const seq = ++loadSeq.current
     setLoading(true)
     setError(false)
     try {
-      const res = await fetchPosts()
+      const res = await fetchPosts(tid)
+      if (seq !== loadSeq.current) return
       setPosts(res.items)
+      setRefreshToken(t => t + 1)
     } catch {
+      if (seq !== loadSeq.current) return
       setError(true)
     }
     setLoading(false)
@@ -62,10 +71,12 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-app-bg pb-28">
       <header className="sticky top-0 z-10 bg-app-bg border-b border-sp-border px-5 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-black text-white tracking-tight">ベスコングルメ部</h1>
+        <TeamSwitcher />
         <div className="flex items-center gap-2">
-          <button onClick={load} disabled={loading}
-            className="w-8 h-8 flex items-center justify-center text-sp-muted hover:text-white transition-colors">🔄</button>
+          <button onClick={() => { load(teamId); loadNotifications() }} disabled={loading} aria-label="更新"
+            className="w-8 h-8 flex items-center justify-center text-sp-muted hover:text-white transition-colors">
+            <span className={loading ? 'animate-spin' : ''}>🔄</span>
+          </button>
           <button onClick={handleOpenNotif} className="relative w-8 h-8 flex items-center justify-center">
             <span>🔔</span>
             {unreadCount > 0 && (
@@ -84,7 +95,8 @@ export default function HomePage() {
           post={hero}
           loading={initialLoading}
           error={error && posts.length === 0}
-          onRetry={load}
+          onRetry={() => load(teamId)}
+          retryToken={refreshToken}
         />
         <div className="pb-4">
           {!loading && !error && posts.length === 0 && (
@@ -101,6 +113,7 @@ export default function HomePage() {
                 <PostCard
                   key={p.postId}
                   post={p}
+                  retryToken={refreshToken}
                   onUpdate={updated => setPosts(prev => prev.map(x => x.postId === updated.postId ? updated : x))}
                 />
               ))}

@@ -3,10 +3,12 @@ import { createPost, uploadPhoto } from '../services/api'
 import { calculateCalories, getFoodExample } from '../services/calories'
 import { useRecord } from '../contexts/RecordContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useTeam } from '../contexts/team-context'
 
 export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
   const { isOpen, close, notifyPosted } = useRecord()
   const { user } = useAuth()
+  const { currentTeam } = useTeam()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [form, setForm] = useState({ exerciseType: 'running', distance: '', duration: '', memo: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -33,7 +35,9 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
   const food = kcal > 0 ? getFoodExample(kcal) : ''
 
   async function handleSubmit() {
-    if (submitting) return
+    if (submitting || !currentTeam) return
+    // 送信開始時点のチームに投稿する（アップロード中に切り替わっても入力したチームへ送る）
+    const teamId = currentTeam.teamId
     setError('')
     setSubmitting(true)
     try {
@@ -50,7 +54,7 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
         }
         setUploading(false)
       }
-      await createPost({
+      await createPost(teamId, {
         exerciseType: form.exerciseType,
         distance: Number(form.distance),
         duration: Number(form.duration),
@@ -114,7 +118,7 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
             <div className="w-10 h-1 bg-sp-border rounded-full" />
           </div>
 
-          <div className="flex items-center justify-between px-6 pb-4">
+          <div className="flex items-center justify-between px-6 pb-1">
             <h2 className="text-lg font-black text-white">ワークアウトを記録</h2>
             <div className="flex gap-1.5">
               {[1, 2, 3].map(s => (
@@ -123,6 +127,7 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
             </div>
           </div>
 
+          <p className="px-6 pb-3 text-xs text-sp-muted truncate">投稿先: {currentTeam?.name}</p>
           <div className="px-6 space-y-4">
             {step === 1 && (
               <>

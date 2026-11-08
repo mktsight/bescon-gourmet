@@ -1,41 +1,55 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Post, Comment } from '../services/api'
 import { timeAgo } from '../services/time'
 import Avatar from './Avatar'
 import { likePost, unlikePost, postComment, fetchComments } from '../services/api'
+import { useTeam } from '../contexts/team-context'
 
 interface Props {
   post: Post
   onUpdate: (updated: Post) => void
+  retryToken: number
 }
 
-export default function PostCard({ post, onUpdate }: Props) {
+// 取得結果で置き換えず reactionId で合成する（投稿直後のコメントを古い応答で消さない）
+function mergeComments(prev: Comment[], fetched: Comment[]): Comment[] {
+  const byId = new Map<string, Comment>()
+  for (const c of prev) byId.set(c.reactionId, c)
+  for (const c of fetched) byId.set(c.reactionId, c)
+  return [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.reactionId.localeCompare(b.reactionId))
+}
+
+export default function PostCard({ post, onUpdate, retryToken }: Props) {
+  const teamId = useTeam().currentTeam!.teamId
   const [liking, setLiking] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [loaded, setLoaded] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [posting, setPosting] = useState(false)
-  const [imgFailed, setImgFailed] = useState(false)
+  const [failed, setFailed] = useState<{ url: string; token: number } | null>(null)
+  const commentsSeq = useRef(0)
   const isRunning = post.exerciseType === 'running'
+  const hasPhoto = !!post.imageUrl && !(failed && failed.url === post.imageUrl && failed.token === retryToken)
 
+  // 取得は effect 内で行い（lint: set-state-in-effect を避ける）、連番で古い応答を捨てる
   useEffect(() => {
-    if (post.commentCount > 0) loadComments()
-  }, [post.postId])
-
-  async function loadComments() {
-    try {
-      const r = await fetchComments(post.postId)
-      setComments(r.items)
-      setLoaded(true)
-    } catch {}
-  }
+    if (post.commentCount <= 0) return
+    const seq = ++commentsSeq.current
+    fetchComments(teamId, post.postId)
+      .then(r => {
+        if (seq !== commentsSeq.current) return
+        setComments(prev => mergeComments(prev, r.items))
+        setLoaded(true)
+      })
+      .catch(() => {})
+  }, [teamId, post.postId, post.commentCount])
 
   async function handleLike() {
     if (liking) return
     setLiking(true)
     try {
-      const res = post.likedByMe ? await unlikePost(post.postId) : await likePost(post.postId)
+      const res = post.likedByMe ? await unlikePost(teamId, post.postId) : await likePost(teamId, post.postId)
       onUpdate({ ...post, likedByMe: res.liked, likeCount: res.likeCount })
     } catch {}
     setLiking(false)
@@ -46,8 +60,8 @@ export default function PostCard({ post, onUpdate }: Props) {
     if (!commentText.trim() || posting) return
     setPosting(true)
     try {
-      const c = await postComment(post.postId, commentText.trim())
-      setComments(prev => [...prev, c])
+      const c = await postComment(teamId, post.postId, commentText.trim())
+      setComments(prev => mergeComments(prev, [c]))
       onUpdate({ ...post, commentCount: post.commentCount + 1 })
       setCommentText('')
     } catch {}
@@ -75,12 +89,12 @@ export default function PostCard({ post, onUpdate }: Props) {
       </div>
 
       {/* 写真（メイン）または スタッツ */}
-      {post.imageUrl && !imgFailed ? (
+      {hasPhoto ? (
         <img
-          src={post.imageUrl}
+          src={post.imageUrl ?? ''}
           alt=""
           className="w-full aspect-square object-cover bg-sp-card2"
-          onError={() => setImgFailed(true)}
+          onError={() => setFailed({ url: post.imageUrl ?? '', token: retryToken })}
         />
       ) : (
         <div className="mx-4 mb-3 bg-sp-card2 rounded-2xl p-5">

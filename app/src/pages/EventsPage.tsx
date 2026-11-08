@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TabBar from '../components/TabBar'
+import { useTeam } from '../contexts/team-context'
 import { fetchEvents, createEvent, type Event } from '../services/api'
 
 const inputCls = 'w-full bg-sp-card2 border-0 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-sp-muted'
@@ -8,6 +9,7 @@ const textareaCls = 'w-full bg-sp-card2 border-0 text-white rounded-2xl px-4 py-
 
 export default function EventsPage() {
   const navigate = useNavigate()
+  const teamId = useTeam().currentTeam!.teamId
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -17,11 +19,11 @@ export default function EventsPage() {
   })
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(teamId) }, [teamId])
 
-  async function load() {
+  async function load(tid: string) {
     setLoading(true)
-    try { const r = await fetchEvents(); setEvents(r.items) } catch {}
+    try { const r = await fetchEvents(tid); setEvents(r.items) } catch {}
     setLoading(false)
   }
 
@@ -29,7 +31,7 @@ export default function EventsPage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      const ev = await createEvent(form)
+      const ev = await createEvent(teamId, form)
       setEvents(prev => [ev, ...prev])
       setShowForm(false)
       setForm({ title: '', description: '', date: '', time: '', location: '', restaurantName: '', walkingRoute: '', runningRoute: '' })

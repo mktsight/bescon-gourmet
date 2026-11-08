@@ -8,10 +8,11 @@ interface Props {
   loading: boolean
   error: boolean
   onRetry: () => void
+  retryToken: number
 }
 
-export default function LatestPostHero({ post, loading, error, onRetry }: Props) {
-  const [imgFailed, setImgFailed] = useState(false)
+export default function LatestPostHero({ post, loading, error, onRetry, retryToken }: Props) {
+  const [failed, setFailed] = useState<{ url: string; token: number } | null>(null)
 
   if (loading) {
     return (
@@ -40,7 +41,8 @@ export default function LatestPostHero({ post, loading, error, onRetry }: Props)
   if (!post) return null
 
   const isRunning = post.exerciseType === 'running'
-  const hasPhoto = !!post.imageUrl && !imgFailed
+  const hasPhoto = !!post.imageUrl && !(failed && failed.url === post.imageUrl && failed.token === retryToken)
+  const badge = post.imageUrl ? '最新の写真' : '最新の投稿'
 
   return (
     <div className="bg-sp-card border-b border-sp-border">
@@ -50,10 +52,10 @@ export default function LatestPostHero({ post, loading, error, onRetry }: Props)
             src={post.imageUrl ?? ''}
             alt=""
             className="w-full aspect-[4/5] max-h-[60vh] object-cover bg-sp-card2"
-            onError={() => setImgFailed(true)}
+            onError={() => setFailed({ url: post.imageUrl ?? '', token: retryToken })}
           />
           <span className="absolute top-3 left-3 bg-primary text-white text-[10px] font-black rounded-full px-2.5 py-1">
-            最新の投稿
+            {badge}
           </span>
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
             <div className="flex items-center gap-2">
@@ -67,13 +69,13 @@ export default function LatestPostHero({ post, loading, error, onRetry }: Props)
       ) : (
         <div className="p-4 pb-0">
           <div className="flex items-center gap-2 mb-3">
-            <span className="bg-primary text-white text-[10px] font-black rounded-full px-2.5 py-1">最新の投稿</span>
+            <span className="bg-primary text-white text-[10px] font-black rounded-full px-2.5 py-1">{badge}</span>
             <Avatar src={post.userIconUrl} name={post.userName} className="w-7 h-7 rounded-full" fallbackClassName={`text-xs text-white ${isRunning ? 'bg-primary/30' : 'bg-sp-blue/30'}`} />
             <span className="font-black text-white">{post.userName}</span>
             <span className="text-xs text-sp-muted">{timeAgo(post.createdAt)}</span>
             <span className="ml-auto text-lg">{isRunning ? '🏃' : '🚶'}</span>
           </div>
-          {imgFailed && (
+          {!hasPhoto && !!post.imageUrl && (
             <p className="text-xs text-sp-muted mb-2">📷 写真を読み込めませんでした</p>
           )}
           <div className="bg-sp-card2 rounded-2xl p-5 grid grid-cols-3 gap-3 text-center">

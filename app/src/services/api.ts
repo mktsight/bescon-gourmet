@@ -12,6 +12,26 @@ async function headers() {
   }
 }
 
+/** API エラー。`message` は従来どおり `data.error ?? res.statusText` */
+export class ApiError extends Error {
+  status: number
+  code?: string
+  data: Record<string, unknown>
+  constructor(status: number, message: string, data: Record<string, unknown>) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = typeof data.code === 'string' ? data.code : undefined
+    this.data = data
+  }
+}
+
+// NOT_A_MEMBER を受けたときに TeamProvider が所属を再取得するための通知口
+let notMemberHandler: (() => void) | null = null
+export function setNotMemberHandler(fn: (() => void) | null) {
+  notMemberHandler = fn
+}
+
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const h = await headers()
   const res = await fetch(`${BASE}${path}`, {
@@ -19,10 +39,23 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: { ...h, ...(init.headers as Record<string, string> | undefined) },
   })
   if (res.status === 204) return null as T
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? res.statusText)
-  return data
+  let data: Record<string, unknown> | null = null
+  try {
+    data = await res.json()
+  } catch (e) {
+    if (res.ok) throw e
+  }
+  if (!res.ok) {
+    const body = data && typeof data === 'object' ? data : {}
+    const message = typeof body.error === 'string' && body.error ? body.error : (res.statusText || `HTTP ${res.status}`)
+    const err = new ApiError(res.status, message, body)
+    if (err.code === 'NOT_A_MEMBER') notMemberHandler?.()
+    throw err
+  }
+  return data as T
 }
+
+const teamQuery = (teamId: string) => `teamId=${encodeURIComponent(teamId)}`
 
 // --- 型定義 ---
 export interface Post {
@@ -42,6 +75,8 @@ export interface Post {
   commentCount: number
   likedByMe: boolean
   createdAt: string
+  /** 旧データ互換のため任意 */
+  teamId?: string
 }
 
 export interface Comment {
@@ -73,15 +108,71 @@ export interface UserProfile {
   iconUrl: string | null
 }
 
+// --- Teams ---
+export type TeamSummary = { teamId: string; name: string; memberCount: number; createdByName: string; createdAt: string; joined?: boolean }
+export type MyTeam = Omit<TeamSummary, 'joined'> & { role: 'owner' | 'member'; joinedAt: string }
+export type TeamMember = { userId: string; name: string; bio?: string; iconUrl?: string | null; role: 'owner' | 'member'; joinedAt: string }
+
+export const fetchAllTeams = (q?: string) =>
+  req<{ items: TeamSummary[]; truncated: boolean }>(`/teams${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+export const createTeam = (name: string, passphrase: string) =>
+  req<{ team: MyTeam; alreadyMember?: boolean }>('/teams', { method: 'POST', body: JSON.stringify({ name, passphrase }) })
+export const joinTeam = (teamId: string, passphrase: string) =>
+  req<{ team: MyTeam; alreadyMember?: boolean }>(`/teams/${encodeURIComponent(teamId)}/join`, {
+    method: 'POST', body: JSON.stringify({ passphrase }),
+  })
+export const fetchMyTeams = () =>
+  req<{ items: MyTeam[]; lastTeamId: string | null; lastTeamAt: string | null }>('/me/teams')
+export const saveLastTeam = (teamId: string) =>
+  req<{ lastTeamId: string; lastTeamAt: string }>('/me/last-team', { method: 'PUT', body: JSON.stringify({ teamId }) })
+export const fetchTeamMembers = (teamId: string) =>
+  req<{ team: TeamSummary; myRole: 'owner' | 'member'; items: TeamMember[] }>(`/teams/${encodeURIComponent(teamId)}/members`)
+export const leaveTeam = (teamId: string) =>
+  req<void>(`/teams/${encodeURIComponent(teamId)}/members/me`, { method: 'DELETE' })
+export const changePassphrase = (teamId: string, passphrase: string) =>
+  req<void>(`/teams/${encodeURIComponent(teamId)}/passphrase`, { method: 'PUT', body: JSON.stringify({ passphrase }) })
+
+const FALLBACK_TEAM_ERROR = '通信に失敗しました。もう一度お試しください'
+
+/** チーム系 API のエラーを画面表示用の日本語にする */
+export function teamErrorMessage(e: unknown): string {
+  if (!(e instanceof ApiError)) return FALLBACK_TEAM_ERROR
+  const minutes = () => {
+    const sec = typeof e.data.retryAfterSec === 'number' ? e.data.retryAfterSec : 60
+    return Math.max(1, Math.ceil(sec / 60))
+  }
+  switch (e.code) {
+    case 'INVALID_PASSPHRASE': {
+      const n = e.data.remainingAttempts
+      return typeof n === 'number' ? `合言葉が違います（あと${n}回）` : '合言葉が違います'
+    }
+    case 'JOIN_LOCKED': return `試行回数が上限に達しました。${minutes()}分後にもう一度お試しください`
+    case 'CREATE_LOCKED': return `チームの作成回数が上限に達しました。${minutes()}分後にもう一度お試しください`
+    case 'CHANGE_LOCKED': return `合言葉の変更回数が上限に達しました。${minutes()}分後にもう一度お試しください`
+    case 'TEAM_NOT_FOUND': return 'チームが見つかりません'
+    case 'TEAM_FULL': return 'このチームは満員です'
+    case 'TOO_MANY_TEAMS': return '参加できるチームは20個までです'
+    case 'NOT_A_MEMBER': return 'このチームのメンバーではありません'
+    case 'LAST_MEMBER': return '最後の1人はチームを抜けられません'
+    case 'RETRY': return '処理が競合しました。もう一度お試しください'
+    case 'OWNER_ONLY': return 'オーナーだけが変更できます'
+    case 'VALIDATION_ERROR': return e.message
+    default: return FALLBACK_TEAM_ERROR
+  }
+}
+
 // --- Posts ---
-export const fetchPosts = () => req<{ items: Post[] }>('/posts')
-export const createPost = (d: { exerciseType: string; distance: number; duration: number; memo?: string; imageUrl?: string | null }) =>
-  req<Post>('/posts', { method: 'POST', body: JSON.stringify(d) })
-export const likePost = (id: string) => req<{ liked: boolean; likeCount: number }>(`/posts/${id}/likes`, { method: 'POST' })
-export const unlikePost = (id: string) => req<{ liked: boolean; likeCount: number }>(`/posts/${id}/likes`, { method: 'DELETE' })
-export const postComment = (id: string, content: string) =>
-  req<Comment>(`/posts/${id}/comments`, { method: 'POST', body: JSON.stringify({ content }) })
-export const fetchComments = (id: string) => req<{ items: Comment[] }>(`/posts/${id}/comments`)
+export const fetchPosts = (teamId: string) => req<{ items: Post[] }>(`/posts?${teamQuery(teamId)}`)
+export const createPost = (teamId: string, d: { exerciseType: string; distance: number; duration: number; memo?: string; imageUrl?: string | null }) =>
+  req<Post>(`/posts?${teamQuery(teamId)}`, { method: 'POST', body: JSON.stringify(d) })
+export const likePost = (teamId: string, id: string) =>
+  req<{ liked: boolean; likeCount: number }>(`/posts/${id}/likes?${teamQuery(teamId)}`, { method: 'POST' })
+export const unlikePost = (teamId: string, id: string) =>
+  req<{ liked: boolean; likeCount: number }>(`/posts/${id}/likes?${teamQuery(teamId)}`, { method: 'DELETE' })
+export const postComment = (teamId: string, id: string, content: string) =>
+  req<Comment>(`/posts/${id}/comments?${teamQuery(teamId)}`, { method: 'POST', body: JSON.stringify({ content }) })
+export const fetchComments = (teamId: string, id: string) =>
+  req<{ items: Comment[] }>(`/posts/${id}/comments?${teamQuery(teamId)}`)
 
 // --- Goals ---
 export const fetchGoals = () => req<{ items: Goal[] }>('/goals')
@@ -122,14 +213,14 @@ export const aiSuggest = (data: {
 }) => req<{ suggestion: string }>('/ai/suggest', { method: 'POST', body: JSON.stringify(data) })
 
 // --- Plan participation ---
-export const joinPlan = (postId: string, exerciseType: string) =>
-  req<{ joined: boolean; participantCount: number }>(`/posts/${postId}/join`, {
+export const joinPlan = (teamId: string, postId: string, exerciseType: string) =>
+  req<{ joined: boolean; participantCount: number }>(`/posts/${postId}/join?${teamQuery(teamId)}`, {
     method: 'POST', body: JSON.stringify({ exerciseType }),
   })
-export const leavePlan = (postId: string) =>
-  req<{ joined: boolean; participantCount: number }>(`/posts/${postId}/join`, { method: 'DELETE' })
-export const getParticipants = (postId: string) =>
-  req<{ items: { userId: string; userName: string; exerciseType: string }[] }>(`/posts/${postId}/participants`)
+export const leavePlan = (teamId: string, postId: string) =>
+  req<{ joined: boolean; participantCount: number }>(`/posts/${postId}/join?${teamQuery(teamId)}`, { method: 'DELETE' })
+export const getParticipants = (teamId: string, postId: string) =>
+  req<{ items: { userId: string; userName: string; exerciseType: string }[] }>(`/posts/${postId}/participants?${teamQuery(teamId)}`)
 
 // --- Events ---
 export interface Event {
@@ -162,16 +253,16 @@ export interface Notification {
   createdAt: string
 }
 
-export const fetchEvents = () => req<{ items: Event[] }>('/events')
-export const createEvent = (d: Omit<Event, 'eventId' | 'createdBy' | 'createdByName' | 'participantCount' | 'createdAt'>) =>
-  req<Event>('/events', { method: 'POST', body: JSON.stringify(d) })
-export const fetchEvent = (id: string) => req<Event>(`/events/${id}`)
-export const joinEvent = (id: string, exerciseType: string) =>
-  req<{ joined: boolean; participantCount: number }>(`/events/${id}/participants`, {
+export const fetchEvents = (teamId: string) => req<{ items: Event[] }>(`/events?${teamQuery(teamId)}`)
+export const createEvent = (teamId: string, d: Omit<Event, 'eventId' | 'createdBy' | 'createdByName' | 'participantCount' | 'createdAt'>) =>
+  req<Event>(`/events?${teamQuery(teamId)}`, { method: 'POST', body: JSON.stringify(d) })
+export const fetchEvent = (teamId: string, id: string) => req<Event>(`/events/${id}?${teamQuery(teamId)}`)
+export const joinEvent = (teamId: string, id: string, exerciseType: string) =>
+  req<{ joined: boolean; participantCount: number }>(`/events/${id}/participants?${teamQuery(teamId)}`, {
     method: 'POST', body: JSON.stringify({ exerciseType }),
   })
-export const leaveEvent = (id: string) =>
-  req<{ joined: boolean; participantCount: number }>(`/events/${id}/participants`, { method: 'DELETE' })
+export const leaveEvent = (teamId: string, id: string) =>
+  req<{ joined: boolean; participantCount: number }>(`/events/${id}/participants?${teamQuery(teamId)}`, { method: 'DELETE' })
 
 export const fetchNotifications = () => req<{ items: Notification[]; unreadCount: number }>('/notifications')
 export const markAllRead = () => req<{ updated: number }>('/notifications/read-all', { method: 'PUT' })
@@ -196,6 +287,7 @@ export async function uploadPhoto(file: File, folder = 'posts'): Promise<string>
 }
 
 // Members
-export const getMembers = () => req<{ items: { userId: string; name: string; bio?: string; iconUrl?: string | null }[] }>('/members')
-export const getMember = (userId: string) =>
-  req<{ userId: string; name: string; bio?: string; iconUrl?: string | null; recentPosts?: Array<{ exerciseType: string; distance: number; calories: number; createdAt: string }> }>(`/members/${userId}`)
+export const getMembers = (teamId: string) =>
+  req<{ items: { userId: string; name: string; bio?: string; iconUrl?: string | null }[] }>(`/members?${teamQuery(teamId)}`)
+export const getMember = (teamId: string, userId: string) =>
+  req<{ userId: string; name: string; bio?: string; iconUrl?: string | null; recentPosts?: Array<{ exerciseType: string; distance: number; calories: number; createdAt: string }> }>(`/members/${userId}?${teamQuery(teamId)}`)

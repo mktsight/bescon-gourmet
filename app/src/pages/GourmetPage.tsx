@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import TabBar from '../components/TabBar'
+import { useTeam } from '../contexts/team-context'
 import Map, { type MapMarker } from '../components/Map'
 import { searchPlaces, aiSuggest, createPost, type Place } from '../services/api'
 import { calculateCalories, getFoodExample } from '../services/calories'
@@ -11,6 +12,7 @@ const inputCls = 'w-full bg-sp-card border border-sp-border text-white rounded-2
 
 export default function GourmetPage() {
   const { user } = useAuth()
+  const teamId = useTeam().currentTeam!.teamId
   const [mode, setMode] = useState<Mode>('restaurant')
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -76,7 +78,7 @@ export default function GourmetPage() {
     if (!selectedPlace) return
     setSharing(true)
     try {
-      await createPost({
+      await createPost(teamId, {
         exerciseType,
         distance: Number(distance),
         duration: 0,
@@ -125,7 +127,7 @@ export default function GourmetPage() {
     if (!exSelected) return
     setSharing(true)
     try {
-      await createPost({
+      await createPost(teamId, {
         exerciseType: exType,
         distance: Number(exDistance),
         duration: Number(exDuration),

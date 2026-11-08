@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import TabBar from '../components/TabBar'
+import { useTeam } from '../contexts/team-context'
 import { fetchEvent, joinEvent, leaveEvent, type Event } from '../services/api'
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const teamId = useTeam().currentTeam!.teamId
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
   const [exType, setExType] = useState<'walking' | 'running'>('walking')
   const [showJoinModal, setShowJoinModal] = useState(false)
 
-  useEffect(() => { if (id) load(id) }, [id])
+  useEffect(() => { if (id) load(teamId, id) }, [teamId, id])
 
-  async function load(eventId: string) {
+  async function load(tid: string, eventId: string) {
     setLoading(true)
-    try { setEvent(await fetchEvent(eventId)) } catch {}
+    try { setEvent(await fetchEvent(tid, eventId)) } catch {}
     setLoading(false)
   }
 
@@ -24,7 +26,7 @@ export default function EventDetailPage() {
     if (!id) return
     setJoining(true)
     try {
-      const r = await joinEvent(id, exType)
+      const r = await joinEvent(teamId, id, exType)
       setEvent(prev => prev ? { ...prev, joinedByMe: true, participantCount: r.participantCount, myExerciseType: exType } : prev)
       setShowJoinModal(false)
     } catch {}
@@ -35,7 +37,7 @@ export default function EventDetailPage() {
     if (!id) return
     setJoining(true)
     try {
-      const r = await leaveEvent(id)
+      const r = await leaveEvent(teamId, id)
       setEvent(prev => prev ? { ...prev, joinedByMe: false, participantCount: r.participantCount } : prev)
     } catch {}
     setJoining(false)

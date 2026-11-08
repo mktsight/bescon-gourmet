@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import TabBar from '../components/TabBar'
+import { useTeam } from '../contexts/team-context'
 import Avatar from '../components/Avatar'
 import { getMembers, getMember } from '../services/api'
 
@@ -19,23 +20,24 @@ interface MemberDetail {
 }
 
 export default function MembersPage() {
+  const teamId = useTeam().currentTeam!.teamId
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<MemberDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(teamId) }, [teamId])
 
-  async function load() {
+  async function load(tid: string) {
     setLoading(true)
-    try { const r = await getMembers(); setMembers(r.items) } catch {}
+    try { const r = await getMembers(tid); setMembers(r.items) } catch {}
     setLoading(false)
   }
 
   async function handleSelect(userId: string) {
     setDetailLoading(true)
     setSelected({ userId, name: '', iconUrl: members.find(m => m.userId === userId)?.iconUrl, recentPosts: [] })
-    try { setSelected(await getMember(userId)) } catch {}
+    try { setSelected(await getMember(teamId, userId)) } catch {}
     setDetailLoading(false)
   }
 
