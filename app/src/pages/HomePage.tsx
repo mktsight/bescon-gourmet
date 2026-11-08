@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import TabBar from '../components/TabBar'
 import PostCard from '../components/PostCard'
 import LatestPostHero from '../components/LatestPostHero'
+import EditPostModal from '../components/EditPostModal'
 import TeamSwitcher from '../components/TeamSwitcher'
 import { useRecord } from '../contexts/RecordContext'
 import { useTeam } from '../contexts/team-context'
 import { fetchPosts, fetchNotifications, markAllRead, type Notification } from '../services/api'
 import type { Post } from '../services/api'
+import { splitFeed, mergeFetched } from '../services/feed'
 
 export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([])
@@ -18,7 +20,10 @@ export default function HomePage() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotif, setShowNotif] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [editingPost, setEditingPost] = useState<Post | null>(null)
   const loadSeq = useRef(0)
+  // 編集直後に古い一覧の応答が届いても巻き戻らないよう、保存済みの編集内容を保持する
+  const localEdits = useRef(new Map<string, Post>())
 
   useEffect(() => {
     load(teamId)
@@ -28,11 +33,8 @@ export default function HomePage() {
     loadNotifications()
   }, [])
 
-  // 写真つきの最新投稿をヒーローにする。写真つきが1件もなければ最新の投稿
-  const hero = useMemo(() => {
-    const sorted = [...posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.postId.localeCompare(a.postId))
-    return sorted.find(p => !!p.imageUrl) ?? sorted[0] ?? null
-  }, [posts])
+  // 写真つきの最新投稿をヒーローにし、タイムラインにはそれ以外を出す
+  const { hero, rest } = useMemo(() => splitFeed(posts), [posts])
   const initialLoading = loading && posts.length === 0
 
   async function load(tid: string) {
@@ -42,7 +44,11 @@ export default function HomePage() {
     try {
       const res = await fetchPosts(tid)
       if (seq !== loadSeq.current) return
-      setPosts(res.items)
+      setPosts(mergeFetched(res.items, localEdits.current))
+      for (const f of res.items) {
+        const local = localEdits.current.get(f.postId)
+        if (local && (f.editedAt ?? '') >= (local.editedAt ?? '')) localEdits.current.delete(f.postId)
+      }
       setRefreshToken(t => t + 1)
     } catch {
       if (seq !== loadSeq.current) return
@@ -51,6 +57,11 @@ export default function HomePage() {
     setLoading(false)
   }
 
+  const updatePostInState = (updated: Post) => setPosts(prev => prev.map(x => x.postId === updated.postId ? updated : x))
+  function handleSaved(updated: Post) {
+    localEdits.current.set(updated.postId, updated)
+    updatePostInState(updated)
+  }
   async function loadNotifications() {
     try {
       const r = await fetchNotifications()
@@ -97,6 +108,8 @@ export default function HomePage() {
           error={error && posts.length === 0}
           onRetry={() => load(teamId)}
           retryToken={refreshToken}
+          onUpdate={updatePostInState}
+          onEdit={setEditingPost}
         />
         <div className="pb-4">
           {!loading && !error && posts.length === 0 && (
@@ -109,12 +122,18 @@ export default function HomePage() {
           {posts.length > 0 && (
             <>
               <h2 className="px-4 pt-5 pb-2 text-xs font-semibold uppercase tracking-widest text-sp-muted">タイムライン</h2>
-              {posts.map(p => (
+              {rest.length === 0 && (
+                <div className="mx-4 bg-sp-card rounded-3xl border border-sp-border p-6 text-center">
+                  <p className="text-sp-muted text-sm font-semibold">他の投稿はまだありません</p>
+                </div>
+              )}
+              {rest.map(p => (
                 <PostCard
                   key={p.postId}
                   post={p}
                   retryToken={refreshToken}
-                  onUpdate={updated => setPosts(prev => prev.map(x => x.postId === updated.postId ? updated : x))}
+                  onUpdate={updatePostInState}
+                  onEdit={setEditingPost}
                 />
               ))}
             </>
@@ -147,6 +166,14 @@ export default function HomePage() {
         </div>
       )}
 
+      {editingPost && (
+        <EditPostModal
+          key={editingPost.postId}
+          post={editingPost}
+          onClose={() => setEditingPost(null)}
+          onSaved={handleSaved}
+        />
+      )}
       <TabBar />
     </div>
   )

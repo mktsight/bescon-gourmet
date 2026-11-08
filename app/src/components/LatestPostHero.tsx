@@ -2,18 +2,19 @@ import { useState } from 'react'
 import type { Post } from '../services/api'
 import { timeAgo } from '../services/time'
 import Avatar from './Avatar'
-
+import { useAuth } from '../contexts/AuthContext'
+import { usePostInteractions } from './usePostInteractions'
+import { LikeBar, CommentSection } from './PostInteractionParts'
 interface Props {
   post: Post | null
   loading: boolean
   error: boolean
   onRetry: () => void
   retryToken: number
+  onUpdate: (updated: Post) => void
+  onEdit: (post: Post) => void
 }
-
-export default function LatestPostHero({ post, loading, error, onRetry, retryToken }: Props) {
-  const [failed, setFailed] = useState<{ url: string; token: number } | null>(null)
-
+export default function LatestPostHero({ post, loading, error, onRetry, retryToken, onUpdate, onEdit }: Props) {
   if (loading) {
     return (
       <div className="bg-sp-card border-b border-sp-border" aria-busy="true">
@@ -25,11 +26,10 @@ export default function LatestPostHero({ post, loading, error, onRetry, retryTok
       </div>
     )
   }
-
   if (error) {
     return (
       <div className="mx-4 mt-4 bg-sp-card rounded-3xl border border-sp-border p-10 text-center">
-        <div className="text-4xl mb-3">⚠️</div>
+        <div className="text-4xl mb-3">⚠</div>
         <p className="text-white font-black">投稿を読み込めませんでした</p>
         <button onClick={onRetry} className="mt-4 bg-primary text-white rounded-2xl px-6 py-3 text-sm font-black">
           再読み込み
@@ -37,13 +37,29 @@ export default function LatestPostHero({ post, loading, error, onRetry, retryTok
       </div>
     )
   }
-
   if (!post) return null
-
+  return <HeroPost post={post} retryToken={retryToken} onUpdate={onUpdate} onEdit={onEdit} />
+}
+interface HeroPostProps {
+  post: Post
+  retryToken: number
+  onUpdate: (updated: Post) => void
+  onEdit: (post: Post) => void
+}
+function HeroPost({ post, retryToken, onUpdate, onEdit }: HeroPostProps) {
+  const { user } = useAuth()
+  const ix = usePostInteractions(post, onUpdate)
+  const [failed, setFailed] = useState<{ url: string; token: number } | null>(null)
   const isRunning = post.exerciseType === 'running'
   const hasPhoto = !!post.imageUrl && !(failed && failed.url === post.imageUrl && failed.token === retryToken)
   const badge = post.imageUrl ? '最新の写真' : '最新の投稿'
-
+  const canEdit = !!user?.userId && post.userId === user.userId
+  const editButton = (cls: string) => (
+    <button onClick={() => onEdit(post)} className={`text-xs font-semibold rounded-full px-3 py-1.5 ${cls}`}>
+      ✏️ 編集
+    </button>
+  )
+  const edited = post.editedAt ? '・編集済み' : ''
   return (
     <div className="bg-sp-card border-b border-sp-border">
       {hasPhoto ? (
@@ -57,11 +73,12 @@ export default function LatestPostHero({ post, loading, error, onRetry, retryTok
           <span className="absolute top-3 left-3 bg-primary text-white text-[10px] font-black rounded-full px-2.5 py-1">
             {badge}
           </span>
+          {canEdit && <div className="absolute top-3 right-3">{editButton('bg-black/60 text-white')}</div>}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
             <div className="flex items-center gap-2">
               <Avatar src={post.userIconUrl} name={post.userName} className="w-8 h-8 rounded-full" fallbackClassName="text-sm text-white bg-white/20" />
               <span className="font-black text-white">{post.userName}</span>
-              <span className="text-xs text-white/70">{timeAgo(post.createdAt)}</span>
+              <span className="text-xs text-white/70">{timeAgo(post.createdAt)}{edited}</span>
               <span className="ml-auto text-lg">{isRunning ? '🏃' : '🚶'}</span>
             </div>
           </div>
@@ -72,8 +89,11 @@ export default function LatestPostHero({ post, loading, error, onRetry, retryTok
             <span className="bg-primary text-white text-[10px] font-black rounded-full px-2.5 py-1">{badge}</span>
             <Avatar src={post.userIconUrl} name={post.userName} className="w-7 h-7 rounded-full" fallbackClassName={`text-xs text-white ${isRunning ? 'bg-primary/30' : 'bg-sp-blue/30'}`} />
             <span className="font-black text-white">{post.userName}</span>
-            <span className="text-xs text-sp-muted">{timeAgo(post.createdAt)}</span>
-            <span className="ml-auto text-lg">{isRunning ? '🏃' : '🚶'}</span>
+            <span className="text-xs text-sp-muted">{timeAgo(post.createdAt)}{edited}</span>
+            <span className="ml-auto flex items-center gap-2">
+              {canEdit && editButton('bg-sp-card2 text-sp-muted')}
+              <span className="text-lg">{isRunning ? '🏃' : '🚶'}</span>
+            </span>
           </div>
           {!hasPhoto && !!post.imageUrl && (
             <p className="text-xs text-sp-muted mb-2">📷 写真を読み込めませんでした</p>
@@ -94,7 +114,7 @@ export default function LatestPostHero({ post, loading, error, onRetry, retryTok
           </div>
         </div>
       )}
-      <div className="p-4 space-y-3">
+      <div className="p-4 pb-0 space-y-3">
         {post.memo && <p className="text-base text-white line-clamp-3 break-words">{post.memo}</p>}
         {hasPhoto && (
           <div className="flex flex-wrap items-center gap-2">
@@ -109,16 +129,12 @@ export default function LatestPostHero({ post, loading, error, onRetry, retryTok
             {post.calories > 0 && (
               <span className="bg-sp-card2 rounded-full px-3 py-1 text-xs font-black text-accent">{post.calories}kcal</span>
             )}
-            {post.commentCount > 0 && (
-              <span className="ml-auto text-xs text-sp-muted font-semibold">💬 {post.commentCount}</span>
-            )}
           </div>
-        )}
-        {!hasPhoto && post.commentCount > 0 && (
-          <div className="text-right text-xs text-sp-muted font-semibold">💬 {post.commentCount}</div>
         )}
         {post.foodExample && <p className="text-xs text-sp-muted">🍽 {post.foodExample}</p>}
       </div>
+      <LikeBar post={post} ix={ix} />
+      <CommentSection post={post} ix={ix} />
     </div>
   )
 }

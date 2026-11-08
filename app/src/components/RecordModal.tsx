@@ -4,6 +4,7 @@ import { calculateCalories, getFoodExample } from '../services/calories'
 import { useRecord } from '../contexts/RecordContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useTeam } from '../contexts/team-context'
+import { ExerciseTypePicker, DistanceDurationFields, PhotoField, MemoField, KcalPreview } from './PostFormParts'
 
 export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
   const { isOpen, close, notifyPosted } = useRecord()
@@ -20,15 +21,12 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
 
   if (!isOpen) return null
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  function handlePhotoPick(file: File) {
     setPhotoFile(file)
     const reader = new FileReader()
     reader.onload = ev => setPhotoPreview(ev.target?.result as string)
     reader.readAsDataURL(file)
   }
-
   const kcal = form.distance && form.duration
     ? calculateCalories(form.exerciseType, Number(form.duration), user?.gender ?? 'other', user?.ageGroup ?? '30s')
     : 0
@@ -132,26 +130,7 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
             {step === 1 && (
               <>
                 <p className="text-sm text-sp-muted font-semibold uppercase tracking-widest">運動の種類</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: 'running', label: '🏃 ランニング' },
-                    { value: 'walking', label: '🚶 ウォーキング' },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setForm(f => ({ ...f, exerciseType: opt.value }))}
-                      className={`py-5 rounded-2xl font-black text-sm transition-all border-2 ${
-                        form.exerciseType === opt.value
-                          ? opt.value === 'running'
-                            ? 'bg-primary/20 border-primary text-primary'
-                            : 'bg-sp-blue/20 border-sp-blue text-sp-blue'
-                          : 'bg-sp-card2 border-sp-border text-sp-muted'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <ExerciseTypePicker value={form.exerciseType} onChange={v => setForm(f => ({ ...f, exerciseType: v }))} />
                 <button onClick={() => setStep(2)} className="w-full bg-primary text-white rounded-2xl py-4 font-black">
                   次へ →
                 </button>
@@ -161,29 +140,12 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
             {step === 2 && (
               <>
                 <p className="text-sm text-sp-muted font-semibold uppercase tracking-widest">距離・時間を入力</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-sp-muted font-semibold uppercase tracking-widest block mb-2">距離 (km)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={form.distance}
-                      onChange={e => setForm(f => ({ ...f, distance: e.target.value }))}
-                      placeholder="5.0"
-                      className="w-full bg-sp-card2 border-0 text-white text-2xl font-black rounded-2xl px-4 py-4 text-center focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-sp-border"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-sp-muted font-semibold uppercase tracking-widest block mb-2">時間 (分)</label>
-                    <input
-                      type="number"
-                      value={form.duration}
-                      onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
-                      placeholder="30"
-                      className="w-full bg-sp-card2 border-0 text-white text-2xl font-black rounded-2xl px-4 py-4 text-center focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-sp-border"
-                    />
-                  </div>
-                </div>
+                <DistanceDurationFields
+                  distance={form.distance}
+                  duration={form.duration}
+                  onDistance={v => setForm(f => ({ ...f, distance: v }))}
+                  onDuration={v => setForm(f => ({ ...f, duration: v }))}
+                />
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 bg-sp-card2 text-sp-muted rounded-2xl py-4 font-bold">← 戻る</button>
                   <button
@@ -199,44 +161,9 @@ export default function RecordModal({ onPosted }: { onPosted?: () => void }) {
 
             {step === 3 && (
               <>
-                {/* 写真選択 */}
-                <div>
-                  <label className="text-xs text-sp-muted font-semibold uppercase tracking-widest block mb-2">写真を追加（任意）</label>
-                  {photoPreview ? (
-                    <div className="relative">
-                      <img src={photoPreview} className="w-full h-40 object-cover rounded-2xl" alt="preview" />
-                      <button
-                        type="button"
-                        onClick={() => { setPhotoFile(null); setPhotoPreview(null) }}
-                        className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-black"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex items-center justify-center gap-2 bg-sp-card2 rounded-2xl py-5 border-2 border-dashed border-sp-border cursor-pointer hover:border-primary/50 transition-colors">
-                      <span className="text-2xl">📷</span>
-                      <span className="text-sm text-sp-muted font-semibold">タップして写真を選択</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-                    </label>
-                  )}
-                </div>
-                {kcal > 0 && (
-                  <div className="bg-accent/15 border border-accent/30 rounded-2xl p-4 text-center">
-                    <div className="text-4xl font-black text-accent">{kcal} kcal</div>
-                    <div className="text-xs text-sp-muted mt-1">≈ {food}</div>
-                  </div>
-                )}
-                <div>
-                  <label className="text-xs text-sp-muted font-semibold uppercase tracking-widest block mb-2">コメント（任意）</label>
-                  <textarea
-                    value={form.memo}
-                    onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
-                    rows={2}
-                    placeholder="今日の感想をみんなにシェアしよう..."
-                    className="w-full bg-sp-card2 border-0 text-white text-sm rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-sp-muted"
-                  />
-                </div>
+                <PhotoField previewUrl={photoPreview} onPick={handlePhotoPick} onRemove={() => { setPhotoFile(null); setPhotoPreview(null) }} />
+                <KcalPreview kcal={kcal} food={food} />
+                <MemoField value={form.memo} onChange={v => setForm(f => ({ ...f, memo: v }))} />
                 {error && <p className="text-sm text-red-400">{error}</p>}
                 <div className="flex gap-3">
                   <button onClick={() => setStep(2)} className="flex-1 bg-sp-card2 text-sp-muted rounded-2xl py-4 font-bold">← 戻る</button>

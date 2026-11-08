@@ -6,6 +6,9 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 // 署名付きURLに空ボディのCRC32が含まれ、実ファイルのPUTがBadDigestで失敗するのを防ぐ
 const s3Client = new S3Client({ region: 'ap-northeast-1', requestChecksumCalculation: 'WHEN_REQUIRED' })
 const UPLOAD_BUCKET = 'bescon-gourmet-uploads-897729110502'
+const UPLOAD_URL_BASE = `https://${UPLOAD_BUCKET}.s3.ap-northeast-1.amazonaws.com/`
+const POST_IMAGE_PREFIX = UPLOAD_URL_BASE + 'posts/'
+const POST_IMAGE_KEY_RE = /^[A-Za-z0-9._-]{1,120}$/
 
 const { normalizePassphrase, hashPassphrase, verifyPassphrase, PassphraseError } = require('./passphrase')
 
@@ -71,6 +74,7 @@ const ERROR_MESSAGES = {
   OWNER_ONLY: 'オーナーだけが変更できます',
   TEAM_NOT_FOUND: 'チームが見つかりません',
   POST_NOT_FOUND: '投稿が見つかりません',
+  NOT_POST_OWNER: '自分の投稿だけ編集できます',
   EVENT_NOT_FOUND: 'イベントが見つかりません',
   TEAM_FULL: 'このチームは満員です',
   TOO_MANY_TEAMS: `参加できるチームは${MAX_TEAMS_PER_USER}個までです`,
@@ -136,6 +140,40 @@ function parseTeamName(raw) {
   const stripped = name.replace(/(?<=\p{Extended_Pictographic}\uFE0F?)\u200D(?=\p{Extended_Pictographic})/gu, '')
   if (/[\p{Cc}\p{Cf}\u2028\u2029]/u.test(stripped)) throw validationError('name', 'チーム名に使えない文字が含まれています')
   return name
+}
+
+// ---- 投稿: 入力検証（POST /posts と PUT /posts/{id} で共通） ----
+
+// 未指定・null・'' は「写真なし」。文字列はこのアプリのアップロード先 posts/ 配下のURLだけ許可する。
+function parseImageUrl(raw) {
+  if (raw === undefined || raw === null || raw === '') return null
+  const invalid = () => validationError('imageUrl', '写真のURLが正しくありません')
+  if (typeof raw !== 'string' || !raw.startsWith(POST_IMAGE_PREFIX)) throw invalid()
+  if (!POST_IMAGE_KEY_RE.test(raw.slice(POST_IMAGE_PREFIX.length))) throw invalid()
+  return raw
+}
+
+function parseNumberField(field, raw, max, label) {
+  const bad = () => validationError(field, `${label}は0〜${max}の数値で入力してください`)
+  if (typeof raw === 'string' ? !raw.trim() : typeof raw !== 'number') throw bad()
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 0 || n > max) throw bad()
+  return n
+}
+
+// body の指定があればそれを、無ければ base を使い、結果を検証して正規化する（部分更新でも他の項目を壊さない）。
+function parsePostFields(body, base = {}) {
+  const pick = (key, dflt) => (body[key] !== undefined ? body[key] : (base[key] !== undefined ? base[key] : dflt))
+  const exerciseType = pick('exerciseType', 'walking')
+  if (exerciseType !== 'walking' && exerciseType !== 'running') {
+    throw validationError('exerciseType', '運動の種類が正しくありません')
+  }
+  const distance = parseNumberField('distance', pick('distance', 0), 1000, '距離')
+  const duration = parseNumberField('duration', pick('duration', 0), 1440, '時間')
+  const memo = pick('memo', '')
+  if (typeof memo !== 'string') throw validationError('memo', 'コメントが正しくありません')
+  if ([...memo].length > 500) throw validationError('memo', 'コメントは500文字以内で入力してください')
+  return { exerciseType, distance, duration, memo }
 }
 
 // ---- チーム: 所属・認可 ----
@@ -386,6 +424,26 @@ async function loadUserIcons(userIds) {
   return new Map(entries)
 }
 
+// カロリー計算に使う性別・年代（プロフィールが無ければ既定値）
+async function loadCalorieProfile(userId) {
+  let gender = 'other', ageGroup = '30s'
+  const { Item: prof } = await ddb.send(new GetCommand({ TableName: T.users, Key: { userId } }))
+  if (prof) { gender = prof.gender ?? 'other'; ageGroup = prof.ageGroup ?? '30s' }
+  return { gender, ageGroup }
+}
+
+// 投稿一覧の各項目に likedByMe（自分のいいね有無）と投稿者の現在のアイコンURLを付ける
+async function decoratePosts(items, userId) {
+  const likedPostIds = new Set()
+  const likeChecks = await Promise.all(items.map(async p => {
+    const { Item } = await ddb.send(new GetCommand({ TableName: T.reactions, Key: { postId: p.postId, reactionId: `like#${userId}` }, ConsistentRead: true }))
+    return Item ? p.postId : null
+  }))
+  likeChecks.forEach(id => { if (id) likedPostIds.add(id) })
+  const icons = await loadUserIcons(items.map(p => p.userId))
+  return items.map(p => ({ ...p, userIconUrl: icons.get(p.userId) ?? null, likedByMe: likedPostIds.has(p.postId) }))
+}
+
 async function createNotification(recipientId, type, actorId, actorName, postId, message) {
   if (recipientId === actorId) return
   await ddb.send(new PutCommand({
@@ -425,7 +483,7 @@ exports.handler = async (event) => {
         new PutObjectCommand({ Bucket: UPLOAD_BUCKET, Key: filename, ContentType: contentType }),
         { expiresIn: 300 }
       )
-      const imageUrl = `https://${UPLOAD_BUCKET}.s3.ap-northeast-1.amazonaws.com/${filename}`
+      const imageUrl = `${UPLOAD_URL_BASE}${filename}`
       return ok({ uploadUrl, imageUrl })
     }
 
@@ -438,30 +496,21 @@ exports.handler = async (event) => {
       }))
       posts.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || (b.postId ?? '').localeCompare(a.postId ?? ''))
       const top = posts.slice(0, 50)
-
-      const likedPostIds = new Set()
-      const likeChecks = await Promise.all(top.map(async p => {
-        const { Item } = await ddb.send(new GetCommand({ TableName: T.reactions, Key: { postId: p.postId, reactionId: `like#${userId}` }, ConsistentRead: true }))
-        return Item ? p.postId : null
-      }))
-      likeChecks.forEach(id => { if (id) likedPostIds.add(id) })
-      const icons = await loadUserIcons(top.map(p => p.userId))
-      return ok({ items: top.map(p => ({ ...p, userIconUrl: icons.get(p.userId) ?? null, likedByMe: likedPostIds.has(p.postId) })) })
+      return ok({ items: await decoratePosts(top, userId) })
     }
 
     if (routeKey === 'POST /posts') {
       const teamId = await requireTeamScope(event, userId)
-      const { exerciseType = 'walking', distance = 0, duration = 0, memo = '', imageUrl = null } = body
-      let gender = 'other', ageGroup = '30s'
-      const { Item: prof } = await ddb.send(new GetCommand({ TableName: T.users, Key: { userId } }))
-      if (prof) { gender = prof.gender ?? 'other'; ageGroup = prof.ageGroup ?? '30s' }
+      const { exerciseType, distance, duration, memo } = parsePostFields(body)
+      const imageUrl = parseImageUrl(body.imageUrl)
+      const { gender, ageGroup } = await loadCalorieProfile(userId)
 
-      const calories = calcCalories(exerciseType, Number(duration), gender, ageGroup)
+      const calories = calcCalories(exerciseType, duration, gender, ageGroup)
       const post = {
         postId: newId('post'), teamId, userId, userName, type: 'record',
-        exerciseType, distance: Number(distance), duration: Number(duration),
+        exerciseType, distance, duration,
         calories, foodExample: foodExample(calories), memo,
-        imageUrl: imageUrl || null,
+        imageUrl,
         likeCount: 0, commentCount: 0, createdAt: new Date().toISOString(),
       }
       await ddb.send(new PutCommand({ TableName: T.posts, Item: post }))
@@ -476,8 +525,8 @@ exports.handler = async (event) => {
         for (const goal of goals) {
           let increment = 0
           switch (goal.type) {
-            case 'distance': increment = Number(distance); break
-            case 'duration': increment = Number(duration); break
+            case 'distance': increment = distance; break
+            case 'duration': increment = duration; break
             case 'calories': increment = calories; break
             case 'count': increment = 1; break
           }
@@ -495,6 +544,45 @@ exports.handler = async (event) => {
       }
 
       return created({ ...post, likedByMe: false })
+    }
+
+    if (routeKey === 'PUT /posts/{id}') {
+      const postId = pathParameters.id
+      const teamId = await requireTeamScope(event, userId)
+      const post = await loadTeamPost(postId, teamId)
+      if (!userId || post.userId !== userId) throw new HttpError(403, 'NOT_POST_OWNER')
+
+      const merged = parsePostFields(body, {
+        exerciseType: post.exerciseType, distance: post.distance, duration: post.duration, memo: post.memo ?? '',
+      })
+      const imageUrl = 'imageUrl' in body ? parseImageUrl(body.imageUrl) : (post.imageUrl ?? null)
+      const { gender, ageGroup } = await loadCalorieProfile(userId)
+      const calories = calcCalories(merged.exerciseType, merged.duration, gender, ageGroup)
+
+      try {
+        const { Attributes } = await ddb.send(new UpdateCommand({
+          TableName: T.posts,
+          Key: { postId },
+          UpdateExpression: 'SET #et = :et, #d = :d, #du = :du, #m = :m, #img = :img, #c = :c, #f = :f, #ea = :ea',
+          ConditionExpression: 'attribute_exists(#pid) AND #uid = :uid AND #tid = :tid',
+          ExpressionAttributeNames: {
+            '#et': 'exerciseType', '#d': 'distance', '#du': 'duration', '#m': 'memo', '#img': 'imageUrl',
+            '#c': 'calories', '#f': 'foodExample', '#ea': 'editedAt',
+            '#pid': 'postId', '#uid': 'userId', '#tid': 'teamId',
+          },
+          ExpressionAttributeValues: {
+            ':et': merged.exerciseType, ':d': merged.distance, ':du': merged.duration, ':m': merged.memo,
+            ':img': imageUrl, ':c': calories, ':f': foodExample(calories), ':ea': nowIso(),
+            ':uid': userId, ':tid': teamId,
+          },
+          ReturnValues: 'ALL_NEW',
+        }))
+        return ok((await decoratePosts([Attributes], userId))[0])
+      } catch (e) {
+        if (!isCondFail(e)) throw e
+        await loadTeamPost(postId, teamId)
+        throw new HttpError(403, 'NOT_POST_OWNER')
+      }
     }
 
     if (routeKey === 'POST /posts/{id}/likes') {

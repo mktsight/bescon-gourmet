@@ -1,75 +1,23 @@
-import { useState, useEffect, useRef } from 'react'
-import type { Post, Comment } from '../services/api'
+import { useState } from 'react'
+import type { Post } from '../services/api'
 import { timeAgo } from '../services/time'
 import Avatar from './Avatar'
-import { likePost, unlikePost, postComment, fetchComments } from '../services/api'
-import { useTeam } from '../contexts/team-context'
-
+import { useAuth } from '../contexts/AuthContext'
+import { usePostInteractions } from './usePostInteractions'
+import { LikeBar, CommentSection } from './PostInteractionParts'
 interface Props {
   post: Post
   onUpdate: (updated: Post) => void
   retryToken: number
+  onEdit?: (post: Post) => void
 }
-
-// 取得結果で置き換えず reactionId で合成する（投稿直後のコメントを古い応答で消さない）
-function mergeComments(prev: Comment[], fetched: Comment[]): Comment[] {
-  const byId = new Map<string, Comment>()
-  for (const c of prev) byId.set(c.reactionId, c)
-  for (const c of fetched) byId.set(c.reactionId, c)
-  return [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.reactionId.localeCompare(b.reactionId))
-}
-
-export default function PostCard({ post, onUpdate, retryToken }: Props) {
-  const teamId = useTeam().currentTeam!.teamId
-  const [liking, setLiking] = useState(false)
-  const [comments, setComments] = useState<Comment[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [showAll, setShowAll] = useState(false)
-  const [commentText, setCommentText] = useState('')
-  const [posting, setPosting] = useState(false)
+export default function PostCard({ post, onUpdate, retryToken, onEdit }: Props) {
+  const { user } = useAuth()
+  const ix = usePostInteractions(post, onUpdate)
   const [failed, setFailed] = useState<{ url: string; token: number } | null>(null)
-  const commentsSeq = useRef(0)
   const isRunning = post.exerciseType === 'running'
   const hasPhoto = !!post.imageUrl && !(failed && failed.url === post.imageUrl && failed.token === retryToken)
-
-  // 取得は effect 内で行い（lint: set-state-in-effect を避ける）、連番で古い応答を捨てる
-  useEffect(() => {
-    if (post.commentCount <= 0) return
-    const seq = ++commentsSeq.current
-    fetchComments(teamId, post.postId)
-      .then(r => {
-        if (seq !== commentsSeq.current) return
-        setComments(prev => mergeComments(prev, r.items))
-        setLoaded(true)
-      })
-      .catch(() => {})
-  }, [teamId, post.postId, post.commentCount])
-
-  async function handleLike() {
-    if (liking) return
-    setLiking(true)
-    try {
-      const res = post.likedByMe ? await unlikePost(teamId, post.postId) : await likePost(teamId, post.postId)
-      onUpdate({ ...post, likedByMe: res.liked, likeCount: res.likeCount })
-    } catch {}
-    setLiking(false)
-  }
-
-  async function handleComment(e: React.FormEvent) {
-    e.preventDefault()
-    if (!commentText.trim() || posting) return
-    setPosting(true)
-    try {
-      const c = await postComment(teamId, post.postId, commentText.trim())
-      setComments(prev => mergeComments(prev, [c]))
-      onUpdate({ ...post, commentCount: post.commentCount + 1 })
-      setCommentText('')
-    } catch {}
-    setPosting(false)
-  }
-
-  const displayedComments = showAll ? comments : comments.slice(0, 2)
-
+  const canEdit = !!onEdit && !!user?.userId && post.userId === user.userId
   return (
     <div className="bg-sp-card border-b border-sp-border">
       {/* ヘッダー */}
@@ -83,11 +31,15 @@ export default function PostCard({ post, onUpdate, retryToken }: Props) {
         />
         <div className="flex-1 min-w-0">
           <div className="font-black text-sm text-white">{post.userName}</div>
-          <div className="text-xs text-sp-muted">{timeAgo(post.createdAt)}</div>
+          <div className="text-xs text-sp-muted">{timeAgo(post.createdAt)}{post.editedAt && '・編集済み'}</div>
         </div>
+        {canEdit && (
+          <button onClick={() => onEdit(post)} className="text-xs font-semibold text-sp-muted bg-sp-card2 rounded-full px-3 py-1.5">
+            ✏️ 編集
+          </button>
+        )}
         <span className="text-lg">{isRunning ? '🏃' : '🚶'}</span>
       </div>
-
       {/* 写真（メイン）または スタッツ */}
       {hasPhoto ? (
         <img
@@ -114,40 +66,23 @@ export default function PostCard({ post, onUpdate, retryToken }: Props) {
           </div>
           {post.foodExample && (
             <div className="mt-3 pt-3 border-t border-sp-border text-center text-xs text-sp-muted">
-              🍽️ {post.foodExample}
+              🍽 {post.foodExample}
             </div>
           )}
         </div>
       )}
-
-      {/* アクション */}
-      <div className="flex items-center gap-4 px-4 py-2">
-        <button
-          onClick={handleLike}
-          disabled={liking}
-          aria-label={post.likedByMe ? 'いいねを取り消す' : 'いいね'}
-          aria-pressed={post.likedByMe}
-          className={`text-xl transition ${post.likedByMe ? 'scale-110' : 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100'}`}
-        >
-          👍
-        </button>
-        <button className="text-white text-xl">💬</button>
-        {post.imageUrl && post.distance > 0 && (
+      {/* アクションといいね数 */}
+      <LikeBar
+        post={post}
+        ix={ix}
+        right={post.imageUrl && post.distance > 0 && (
           <div className="ml-auto flex gap-3 text-xs text-sp-muted font-semibold">
             <span className={isRunning ? 'text-primary' : 'text-sp-blue'}>{post.distance}km</span>
             <span>{post.duration}min</span>
             <span className="text-accent">{post.calories}kcal</span>
           </div>
         )}
-      </div>
-
-      {/* いいね数 */}
-      {post.likeCount > 0 && (
-        <div className="px-4 pb-1">
-          <span className="text-sm font-black text-white">いいね {post.likeCount}件</span>
-        </div>
-      )}
-
+      />
       {/* キャプション */}
       {post.memo && (
         <p className="px-4 pb-2 text-sm">
@@ -155,42 +90,8 @@ export default function PostCard({ post, onUpdate, retryToken }: Props) {
           <span className="text-sp-muted">{post.memo}</span>
         </p>
       )}
-
       {/* コメント（常時表示） */}
-      <div className="px-4 pb-4 space-y-1.5">
-        {displayedComments.map(c => (
-          <p key={c.reactionId} className="text-sm">
-            <span className="font-black text-white">{c.userName} </span>
-            <span className="text-sp-muted">{c.content}</span>
-          </p>
-        ))}
-        {!showAll && loaded && comments.length > 2 && (
-          <button
-            onClick={() => setShowAll(true)}
-            className="text-sp-muted text-xs font-semibold"
-          >
-            コメントをすべて見る（{post.commentCount}件）
-          </button>
-        )}
-        <form onSubmit={handleComment} className="flex items-center gap-2 mt-2 border-t border-sp-border pt-2">
-          <input
-            type="text"
-            value={commentText}
-            onChange={e => setCommentText(e.target.value)}
-            placeholder="コメントを追加..."
-            className="flex-1 bg-transparent text-sm text-white placeholder:text-sp-muted focus:outline-none"
-          />
-          {commentText.trim() && (
-            <button
-              type="submit"
-              disabled={posting}
-              className="text-primary font-black text-xs disabled:opacity-40"
-            >
-              投稿
-            </button>
-          )}
-        </form>
-      </div>
+      <CommentSection post={post} ix={ix} />
     </div>
   )
 }

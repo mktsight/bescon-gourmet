@@ -75,6 +75,8 @@ export interface Post {
   commentCount: number
   likedByMe: boolean
   createdAt: string
+  /** 最後に編集した時刻（ISO8601）。未編集の投稿には無い */
+  editedAt?: string
   /** 旧データ互換のため任意 */
   teamId?: string
 }
@@ -165,6 +167,8 @@ export function teamErrorMessage(e: unknown): string {
 export const fetchPosts = (teamId: string) => req<{ items: Post[] }>(`/posts?${teamQuery(teamId)}`)
 export const createPost = (teamId: string, d: { exerciseType: string; distance: number; duration: number; memo?: string; imageUrl?: string | null }) =>
   req<Post>(`/posts?${teamQuery(teamId)}`, { method: 'POST', body: JSON.stringify(d) })
+export const updatePost = (teamId: string, id: string, d: { exerciseType?: string; distance?: number; duration?: number; memo?: string; imageUrl?: string | null }) =>
+  req<Post>(`/posts/${id}?${teamQuery(teamId)}`, { method: 'PUT', body: JSON.stringify(d) })
 export const likePost = (teamId: string, id: string) =>
   req<{ liked: boolean; likeCount: number }>(`/posts/${id}/likes?${teamQuery(teamId)}`, { method: 'POST' })
 export const unlikePost = (teamId: string, id: string) =>
