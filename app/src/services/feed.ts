@@ -5,9 +5,9 @@ export function sortPosts(posts: Post[]): Post[] {
   return [...posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.postId.localeCompare(a.postId))
 }
 
-/** 写真つきの最新投稿。写真つきが1件もなければ最新の投稿 */
+/** ホーム最上部の投稿。写真の有無に関係なく、チームの最新の投稿 */
 export function pickHero(sorted: Post[]): Post | null {
-  return sorted.find(p => !!p.imageUrl) ?? sorted[0] ?? null
+  return sorted[0] ?? null
 }
 
 /** ヒーローとタイムライン（ヒーローを除いた残り）に分ける。同じ投稿は両方に入らない */

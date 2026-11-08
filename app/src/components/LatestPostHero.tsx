@@ -52,7 +52,7 @@ function HeroPost({ post, retryToken, onUpdate, onEdit }: HeroPostProps) {
   const [failed, setFailed] = useState<{ url: string; token: number } | null>(null)
   const isRunning = post.exerciseType === 'running'
   const hasPhoto = !!post.imageUrl && !(failed && failed.url === post.imageUrl && failed.token === retryToken)
-  const badge = post.imageUrl ? '最新の写真' : '最新の投稿'
+  const badge = '最新の投稿'
   const canEdit = !!user?.userId && post.userId === user.userId
   const editButton = (cls: string) => (
     <button onClick={() => onEdit(post)} className={`text-xs font-semibold rounded-full px-3 py-1.5 ${cls}`}>
@@ -115,7 +115,9 @@ function HeroPost({ post, retryToken, onUpdate, onEdit }: HeroPostProps) {
         </div>
       )}
       <div className="p-4 pb-0 space-y-3">
-        {post.memo && <p className="text-base text-white line-clamp-3 break-words">{post.memo}</p>}
+        {post.memo && (
+          <p className={hasPhoto ? 'text-base text-white line-clamp-3 break-words' : 'text-lg text-white line-clamp-6 break-words'}>{post.memo}</p>
+        )}
         {hasPhoto && (
           <div className="flex flex-wrap items-center gap-2">
             {post.distance > 0 && (

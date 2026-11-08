@@ -33,7 +33,7 @@ export default function HomePage() {
     loadNotifications()
   }, [])
 
-  // 写真つきの最新投稿をヒーローにし、タイムラインにはそれ以外を出す
+  // 最新の投稿（写真の有無を問わない）を最上部に出し、タイムラインにはそれ以外を出す
   const { hero, rest } = useMemo(() => splitFeed(posts), [posts])
   const initialLoading = loading && posts.length === 0
 
