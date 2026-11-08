@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',Meiryo,sans-serif">
+<title>ベスコングルメ部 AWS構成図</title>
+<defs>
+<marker id="aS" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 z" fill="#232F3E"/></marker>
+<marker id="aD" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 z" fill="#8b929c"/></marker>
+<marker id="aT" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 z" fill="#3b6ea8"/></marker>
+</defs>
+<rect width="1600" height="1000" fill="#ffffff"/>
+<text x="30" y="44" font-size="26" fill="#232F3E" font-weight="700" text-anchor="start">ベスコングルメ部 AWS構成図（本番環境）</text>
+<text x="30" y="72" font-size="14" fill="#6b7280" font-weight="400" text-anchor="start">リージョン: ap-northeast-1（東京）　/　2026-11-08 時点　/　実線は現行の画面から使う通信、破線は実装済みだが現UIからは未使用</text>
+<rect x="290" y="100" width="1160" height="730" rx="10" fill="#fbfcfd" stroke="#232F3E" stroke-width="2"/>
+<rect x="290" y="100" width="300" height="30" rx="10" fill="#232F3E"/><rect x="290" y="115" width="300" height="15" fill="#232F3E"/>
+<text x="304" y="121" font-size="14" fill="#ffffff" font-weight="700" text-anchor="start">AWS Cloud ・ ap-northeast-1</text>
+<rect x="30" y="150" width="160" height="650" rx="10" fill="#eef3fb" stroke="#3b6ea8" stroke-width="2"/>
+<rect x="46" y="168" width="128" height="86" rx="6" fill="#fff" stroke="#3b6ea8" stroke-width="2"/>
+<rect x="46" y="168" width="128" height="18" rx="6" fill="#3b6ea8"/><rect x="46" y="178" width="128" height="8" fill="#3b6ea8"/>
+<circle cx="58" cy="177" r="3" fill="#fff"/><circle cx="68" cy="177" r="3" fill="#fff"/><circle cx="78" cy="177" r="3" fill="#fff"/>
+<text x="110" y="226" font-size="16" fill="#3b6ea8" font-weight="700" text-anchor="middle">ベスコン</text>
+<text x="110" y="246" font-size="12" fill="#3b6ea8" font-weight="400" text-anchor="middle">Webアプリ</text>
+<text x="110" y="284" font-size="16" fill="#232F3E" font-weight="700" text-anchor="middle">メンバーの</text>
+<text x="110" y="306" font-size="16" fill="#232F3E" font-weight="700" text-anchor="middle">ブラウザ</text>
+<text x="110" y="340" font-size="12" fill="#37414f" font-weight="400" text-anchor="middle">React 19 + Vite</text>
+<text x="110" y="358" font-size="12" fill="#37414f" font-weight="400" text-anchor="middle">(TypeScript)</text>
+<text x="110" y="392" font-size="12" fill="#37414f" font-weight="400" text-anchor="middle">aws-amplify は</text>
+<text x="110" y="410" font-size="12" fill="#37414f" font-weight="400" text-anchor="middle">認証だけに使用</text>
+<text x="110" y="444" font-size="12" fill="#37414f" font-weight="400" text-anchor="middle">API 呼び出し:</text>
+<text x="110" y="462" font-size="12" fill="#37414f" font-weight="400" text-anchor="middle">Authorization:</text>
+<text x="110" y="480" font-size="12" fill="#37414f" font-weight="400" text-anchor="middle">Bearer IDトークン</text>
+<rect x="42" y="690" width="136" height="96" rx="8" fill="#f7f8fa" stroke="#9aa1ab" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="110" y="716" font-size="13" fill="#6b7280" font-weight="700" text-anchor="middle">OpenStreetMap</text>
+<text x="110" y="736" font-size="12" fill="#5b6470" font-weight="400" text-anchor="middle">地図タイル（外部）</text>
+<text x="110" y="756" font-size="12" fill="#5b6470" font-weight="400" text-anchor="middle">実装済み・</text>
+<text x="110" y="774" font-size="12" fill="#5b6470" font-weight="400" text-anchor="middle">現UIからは未使用</text>
+<rect x="370" y="140" width="240" height="110" rx="8" fill="#ffffff" stroke="#8C4FFF" stroke-width="2"/>
+<rect x="380" y="150" width="34" height="34" rx="6" fill="#8C4FFF"/>
+<text x="397" y="172" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">CF</text>
+<text x="422" y="171" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">Amazon CloudFront</text>
+<text x="382" y="202" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">OAC で S3 に接続 / HTTPS</text>
+<text x="382" y="221" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">403・404 → /index.html (200)</text>
+<text x="382" y="240" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">キャッシュ: CachingOptimized</text>
+<rect x="370" y="300" width="240" height="110" rx="8" fill="#ffffff" stroke="#DD344C" stroke-width="2"/>
+<rect x="380" y="310" width="34" height="34" rx="6" fill="#DD344C"/>
+<text x="397" y="332" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">Cog</text>
+<text x="422" y="331" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">Amazon Cognito</text>
+<text x="382" y="362" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">ユーザープール bescon-gourmet</text>
+<text x="382" y="381" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">メール + パスワード</text>
+<text x="382" y="400" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">ログインで JWT（IDトークン）発行</text>
+<rect x="370" y="460" width="240" height="110" rx="8" fill="#ffffff" stroke="#E7157B" stroke-width="2"/>
+<rect x="380" y="470" width="34" height="34" rx="6" fill="#E7157B"/>
+<text x="397" y="492" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">API</text>
+<text x="422" y="491" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">Amazon API Gateway</text>
+<text x="382" y="522" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">HTTP API ・ 36 ルート</text>
+<text x="382" y="541" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">Cognito JWT オーソライザー</text>
+<text x="382" y="560" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">CORS 設定あり</text>
+<rect x="370" y="640" width="240" height="160" rx="8" fill="#ffffff" stroke="#7AA116" stroke-width="2"/>
+<rect x="380" y="650" width="34" height="34" rx="6" fill="#7AA116"/>
+<text x="397" y="672" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">S3</text>
+<text x="422" y="671" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">Amazon S3</text>
+<text x="382" y="702" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">アップロード用バケット</text>
+<text x="382" y="721" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">bescon-gourmet-uploads-&lt;ID&gt;</text>
+<text x="382" y="740" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">公開読み取りは posts/ と</text>
+<text x="382" y="759" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">profiles/ だけ</text>
+<text x="382" y="778" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">CORS: PUT・GET / 署名URL 5分</text>
+<rect x="750" y="140" width="240" height="110" rx="8" fill="#ffffff" stroke="#7AA116" stroke-width="2"/>
+<rect x="760" y="150" width="34" height="34" rx="6" fill="#7AA116"/>
+<text x="777" y="172" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">S3</text>
+<text x="802" y="171" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">Amazon S3（Web用）</text>
+<text x="762" y="202" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">bescon-gourmet-web-&lt;ID&gt;</text>
+<text x="762" y="221" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">静的ファイル（React アプリ）</text>
+<text x="762" y="240" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">非公開（CloudFront 経由のみ）</text>
+<rect x="750" y="330" width="240" height="90" rx="8" fill="#ffffff" stroke="#DD344C" stroke-width="2"/>
+<rect x="760" y="340" width="34" height="34" rx="6" fill="#DD344C"/>
+<text x="777" y="362" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">IAM</text>
+<text x="802" y="361" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">IAM ロール</text>
+<text x="762" y="392" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">bescon-lambda-role</text>
+<text x="762" y="411" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">DynamoDB・S3・Bedrock・ログ</text>
+<rect x="750" y="460" width="240" height="110" rx="8" fill="#ffffff" stroke="#ED7100" stroke-width="2"/>
+<rect x="760" y="470" width="34" height="34" rx="6" fill="#ED7100"/>
+<text x="777" y="492" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">λ</text>
+<text x="802" y="491" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">AWS Lambda</text>
+<text x="762" y="522" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">関数 bescon-api</text>
+<text x="762" y="541" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">Node.js 20.x ・ 256 MB ・ 30 秒</text>
+<text x="762" y="560" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">1 関数で全 36 ルートを処理</text>
+<rect x="750" y="650" width="240" height="80" rx="8" fill="#ffffff" stroke="#E7157B" stroke-width="2"/>
+<rect x="760" y="660" width="34" height="34" rx="6" fill="#E7157B"/>
+<text x="777" y="682" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">CW</text>
+<text x="802" y="681" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">CloudWatch Logs</text>
+<text x="762" y="712" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">/aws/lambda/bescon-api</text>
+<rect x="1090" y="130" width="340" height="470" rx="8" fill="#fff" stroke="#C925D1" stroke-width="2"/>
+<rect x="1100" y="140" width="34" height="34" rx="6" fill="#C925D1"/>
+<text x="1117" y="162" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">DDB</text>
+<text x="1142" y="161" font-size="14" fill="#232F3E" font-weight="700" text-anchor="start">Amazon DynamoDB</text>
+<text x="1142" y="180" font-size="12" fill="#37414f" font-weight="400" text-anchor="start">10 テーブル ・ オンデマンド課金</text>
+<rect x="1104" y="194" width="312" height="28" rx="4" fill="#faf0fb"/>
+<text x="1114" y="215" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-users</text>
+<rect x="1104" y="226" width="312" height="64" rx="4" fill="#faf0fb"/>
+<text x="1114" y="247" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-posts</text>
+<text x="1124" y="265" font-size="12" fill="#6b2f73" font-weight="400" text-anchor="start">GSI: userId-createdAt-index</text>
+<text x="1124" y="283" font-size="12" fill="#6b2f73" font-weight="400" text-anchor="start">GSI: teamId-createdAt-index</text>
+<rect x="1104" y="294" width="312" height="28" rx="4" fill="#faf0fb"/>
+<text x="1114" y="315" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-reactions</text>
+<rect x="1104" y="326" width="312" height="28" rx="4" fill="#faf0fb"/>
+<text x="1114" y="347" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-goals</text>
+<rect x="1104" y="358" width="312" height="28" rx="4" fill="#faf0fb"/>
+<text x="1114" y="379" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-events</text>
+<rect x="1104" y="390" width="312" height="28" rx="4" fill="#faf0fb"/>
+<text x="1114" y="411" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-participants</text>
+<rect x="1104" y="422" width="312" height="28" rx="4" fill="#faf0fb"/>
+<text x="1114" y="443" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-notifications</text>
+<rect x="1104" y="454" width="312" height="28" rx="4" fill="#faf0fb"/>
+<text x="1114" y="475" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-teams</text>
+<rect x="1104" y="486" width="312" height="46" rx="4" fill="#faf0fb"/>
+<text x="1114" y="507" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-team-members</text>
+<text x="1124" y="525" font-size="12" fill="#6b2f73" font-weight="400" text-anchor="start">GSI: userId-teamId-index</text>
+<rect x="1104" y="536" width="312" height="46" rx="4" fill="#faf0fb"/>
+<text x="1114" y="557" font-size="13" fill="#232F3E" font-weight="700" text-anchor="start">bescon-team-attempts</text>
+<text x="1124" y="575" font-size="12" fill="#6b2f73" font-weight="400" text-anchor="start">TTL: expiresAt</text>
+<rect x="1090" y="650" width="340" height="100" rx="8" fill="#f7f8fa" stroke="#9aa1ab" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="1100" y="660" width="34" height="34" rx="6" fill="#9aa1ab"/>
+<text x="1117" y="682" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">AI</text>
+<text x="1142" y="681" font-size="13" fill="#6b7280" font-weight="700" text-anchor="start">Amazon Bedrock（Claude Haiku）</text>
+<text x="1102" y="712" font-size="12" fill="#5b6470" font-weight="400" text-anchor="start">AI のコース・店舗提案</text>
+<text x="1102" y="731" font-size="12" fill="#5b6470" font-weight="400" text-anchor="start">実装済み・現UIからは未使用</text>
+<rect x="1480" y="650" width="110" height="130" rx="8" fill="#f7f8fa" stroke="#9aa1ab" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1535" y="674" font-size="13" fill="#6b7280" font-weight="700" text-anchor="middle">Google</text>
+<text x="1535" y="692" font-size="13" fill="#6b7280" font-weight="700" text-anchor="middle">Places API</text>
+<text x="1535" y="716" font-size="12" fill="#5b6470" font-weight="400" text-anchor="middle">外部サービス</text>
+<text x="1535" y="736" font-size="12" fill="#5b6470" font-weight="400" text-anchor="middle">実装済み・</text>
+<text x="1535" y="754" font-size="12" fill="#5b6470" font-weight="400" text-anchor="middle">現UIからは</text>
+<text x="1535" y="772" font-size="12" fill="#5b6470" font-weight="400" text-anchor="middle">未使用</text>
+<path d="M190,195 H370" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<circle cx="235" cy="195" r="13" fill="#232F3E"/>
+<text x="235" y="200" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="300" y="186" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="start">HTTPS</text>
+<path d="M610,195 H750" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<text x="680" y="186" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="middle">OAC</text>
+<path d="M190,355 H370" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<circle cx="235" cy="355" r="13" fill="#232F3E"/>
+<text x="235" y="360" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="300" y="346" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="start">Amplify</text>
+<path d="M190,515 H370" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<circle cx="235" cy="515" r="13" fill="#232F3E"/>
+<text x="235" y="520" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="300" y="506" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="start">Bearer</text>
+<text x="300" y="537" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="start">JWT</text>
+<path d="M610,515 H750" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<text x="680" y="506" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="middle">プロキシ統合</text>
+<path d="M490,460 V410" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<text x="498" y="442" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="start">JWT 検証</text>
+<path d="M990,515 H1090" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<circle cx="1040" cy="515" r="13" fill="#232F3E"/>
+<text x="1040" y="520" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<path d="M870,420 V460" fill="none" stroke="#3b6ea8" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round" marker-end="url(#aT)"/>
+<text x="878" y="444" font-size="11.5" fill="#3b6ea8" font-weight="400" text-anchor="start">引き受け</text>
+<path d="M870,570 V650" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<circle cx="870" cy="610" r="13" fill="#232F3E"/>
+<text x="870" y="615" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<path d="M190,690 H370" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<circle cx="235" cy="690" r="13" fill="#232F3E"/>
+<text x="235" y="695" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="300" y="681" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="start">PUT</text>
+<path d="M190,745 H370" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<circle cx="235" cy="745" r="13" fill="#232F3E"/>
+<text x="235" y="750" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="300" y="736" font-size="11.5" fill="#37414f" font-weight="400" text-anchor="start">GET</text>
+<path d="M750,545 H650 V715 H610" fill="none" stroke="#3b6ea8" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round" marker-end="url(#aT)"/>
+<text x="658" y="600" font-size="11.5" fill="#3b6ea8" font-weight="400" text-anchor="start">署名付きURLを</text>
+<text x="658" y="618" font-size="11.5" fill="#3b6ea8" font-weight="400" text-anchor="start">発行（署名のみ）</text>
+<path d="M990,545 H1030 V690 H1090" fill="none" stroke="#8b929c" stroke-width="2.2" stroke-dasharray="8 6" marker-end="url(#aD)"/>
+<path d="M1030,628 H1465 V700 H1480" fill="none" stroke="#8b929c" stroke-width="2.2" stroke-dasharray="8 6" marker-end="url(#aD)"/>
+<rect x="30" y="850" width="1540" height="142" rx="8" fill="#f4f6f9" stroke="#c9ced6" stroke-width="1.5"/>
+<text x="46" y="876" font-size="15" fill="#232F3E" font-weight="700" text-anchor="start">凡例</text>
+<path d="M50,900 H130" fill="none" stroke="#232F3E" stroke-width="2.2" marker-end="url(#aS)"/>
+<text x="142" y="905" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">現行の画面から使う通信</text>
+<path d="M50,926 H130" fill="none" stroke="#8b929c" stroke-width="2.2" stroke-dasharray="8 6" marker-end="url(#aD)"/>
+<text x="142" y="931" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">実装済み・現UIからは未使用</text>
+<path d="M50,952 H130" fill="none" stroke="#3b6ea8" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round" marker-end="url(#aT)"/>
+<text x="142" y="957" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">署名・権限の関係（通信はしない）</text>
+<circle cx="440" cy="887" r="13" fill="#232F3E"/>
+<text x="440" y="892" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="462" y="892" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">画面の配信: ブラウザ → CloudFront → S3（Web用、OAC）</text>
+<circle cx="440" cy="909" r="13" fill="#232F3E"/>
+<text x="440" y="914" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="462" y="914" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">ログイン・登録: ブラウザ → Cognito（IDトークンを発行）</text>
+<circle cx="440" cy="931" r="13" fill="#232F3E"/>
+<text x="440" y="936" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="462" y="936" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">API 呼び出し: ブラウザ → API Gateway（JWT 検証）→ Lambda</text>
+<circle cx="440" cy="953" r="13" fill="#232F3E"/>
+<text x="440" y="958" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="462" y="958" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">データの読み書き: Lambda → DynamoDB</text>
+<circle cx="1010" cy="887" r="13" fill="#232F3E"/>
+<text x="1010" y="892" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="1032" y="892" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">画像アップロード: ブラウザ → S3 へ署名付きURLで直接 PUT</text>
+<circle cx="1010" cy="909" r="13" fill="#232F3E"/>
+<text x="1010" y="914" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="1032" y="914" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">画像表示: ブラウザ → S3 の公開URLを直接 GET</text>
+<circle cx="1010" cy="931" r="13" fill="#232F3E"/>
+<text x="1010" y="936" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<text x="1032" y="936" font-size="13" fill="#37414f" font-weight="400" text-anchor="start">ログ出力: Lambda → CloudWatch Logs</text>
+<text x="1010" y="966" font-size="12" fill="#6b7280" font-weight="400" text-anchor="start">&lt;ID&gt; = AWSアカウントID（本書には掲載しない）。リソース名は実在のもの。</text>
+<text x="1010" y="984" font-size="12" fill="#6b7280" font-weight="400" text-anchor="start">2026-11-08 に読み取り専用コマンドで確認。詳細は 設計仕様書.md の「8. AWSアーキテクチャ」。</text>
+</svg>
