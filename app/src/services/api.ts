@@ -272,15 +272,19 @@ export const fetchNotifications = () => req<{ items: Notification[]; unreadCount
 export const markAllRead = () => req<{ updated: number }>('/notifications/read-all', { method: 'PUT' })
 
 // --- Uploads ---
-export const getUploadUrl = (folder = 'posts', contentType = 'image/jpeg') =>
+export const getUploadUrl = (folder: string, contentType: string, size: number) =>
   req<{ uploadUrl: string; imageUrl: string }>(
-    `/uploads/presigned-url?folder=${folder}&contentType=${encodeURIComponent(contentType)}`
+    `/uploads/presigned-url?folder=${encodeURIComponent(folder)}&contentType=${encodeURIComponent(contentType)}&size=${size}`
   )
+
+// サーバー側の上限と同じ（署名付きURLは申告サイズと違う本体を S3 が拒否する）
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 
 export async function uploadPhoto(file: File, folder = 'posts'): Promise<string> {
   const body = await normalizePhoto(file)
   const contentType = 'image/jpeg'
-  const { uploadUrl, imageUrl } = await getUploadUrl(folder, contentType)
+  if (body.size < 1 || body.size > MAX_UPLOAD_BYTES) throw new Error('写真のアップロードに失敗しました')
+  const { uploadUrl, imageUrl } = await getUploadUrl(folder, contentType, body.size)
   const res = await fetch(uploadUrl, {
     method: 'PUT',
     body,

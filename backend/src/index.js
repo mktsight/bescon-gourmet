@@ -8,7 +8,16 @@ const s3Client = new S3Client({ region: 'ap-northeast-1', requestChecksumCalcula
 const UPLOAD_BUCKET = 'bescon-gourmet-uploads-897729110502'
 const UPLOAD_URL_BASE = `https://${UPLOAD_BUCKET}.s3.ap-northeast-1.amazonaws.com/`
 const POST_IMAGE_PREFIX = UPLOAD_URL_BASE + 'posts/'
-const POST_IMAGE_KEY_RE = /^[A-Za-z0-9._-]{1,120}$/
+const PROFILE_IMAGE_PREFIX = UPLOAD_URL_BASE + 'profiles/'
+// 英数字で始まる最大120文字（'.' や '..' だけのキーを除く）
+const IMAGE_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/
+// 署名付きURLで受け付けるアップロード先と画像形式。拡張子は検証済みの contentType からサーバーが決める。
+const UPLOAD_FOLDERS = ['posts', 'profiles']
+const UPLOAD_EXTENSIONS = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+const MAX_BIO_LENGTH = 200
+const GENDERS = ['male', 'female', 'other']
+const AGE_GROUPS = ['10s', '20s', '30s', '40s', '50s', '60s']
 
 const { normalizePassphrase, hashPassphrase, verifyPassphrase, PassphraseError } = require('./passphrase')
 
@@ -144,13 +153,53 @@ function parseTeamName(raw) {
 
 // ---- 投稿: 入力検証（POST /posts と PUT /posts/{id} で共通） ----
 
-// 未指定・null・'' は「写真なし」。文字列はこのアプリのアップロード先 posts/ 配下のURLだけ許可する。
-function parseImageUrl(raw) {
+// 未指定・null・'' は「写真なし」。文字列はこのアプリのアップロード先の指定プレフィックス配下のURLだけ許可する。
+function parseImageUrl(raw, prefix = POST_IMAGE_PREFIX, field = 'imageUrl', message = '写真のURLが正しくありません') {
   if (raw === undefined || raw === null || raw === '') return null
-  const invalid = () => validationError('imageUrl', '写真のURLが正しくありません')
-  if (typeof raw !== 'string' || !raw.startsWith(POST_IMAGE_PREFIX)) throw invalid()
-  if (!POST_IMAGE_KEY_RE.test(raw.slice(POST_IMAGE_PREFIX.length))) throw invalid()
+  const invalid = () => validationError(field, message)
+  if (typeof raw !== 'string' || !raw.startsWith(prefix)) throw invalid()
+  if (!IMAGE_KEY_RE.test(raw.slice(prefix.length))) throw invalid()
   return raw
+}
+
+// ---- アップロード・プロフィール: 入力検証 ----
+
+function parseUploadQuery(query = {}) {
+  const folder = query.folder ?? 'posts'
+  if (!UPLOAD_FOLDERS.includes(folder)) throw validationError('folder', '保存先の指定が正しくありません')
+  const contentType = query.contentType ?? 'image/jpeg'
+  if (!Object.prototype.hasOwnProperty.call(UPLOAD_EXTENSIONS, contentType)) {
+    throw validationError('contentType', '画像の形式が正しくありません（JPEG・PNG・WebPのみ）')
+  }
+  const sizeRaw = query.size
+  const sizeBad = () => validationError('size', '画像のサイズが正しくありません（5MB以下）')
+  if (typeof sizeRaw !== 'string' || !/^[1-9][0-9]{0,7}$/.test(sizeRaw)) throw sizeBad()
+  const size = Number(sizeRaw)
+  if (size > MAX_UPLOAD_BYTES) throw sizeBad()
+  return { folder, contentType, size, ext: UPLOAD_EXTENSIONS[contentType] }
+}
+
+// 受け付ける項目だけ検証して返す（未知の項目は無視。保存済みの旧データには適用しない）。
+function parseProfileUpdate(body) {
+  const out = {}
+  if (body.bio !== undefined) {
+    if (typeof body.bio !== 'string') throw validationError('bio', '自己紹介が正しくありません')
+    if ([...body.bio].length > MAX_BIO_LENGTH) throw validationError('bio', `自己紹介は${MAX_BIO_LENGTH}文字以内で入力してください`)
+    if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(body.bio)) throw validationError('bio', '自己紹介に使えない文字が含まれています')
+    out.bio = body.bio
+  }
+  if (body.gender !== undefined) {
+    if (!GENDERS.includes(body.gender)) throw validationError('gender', '性別が正しくありません')
+    out.gender = body.gender
+  }
+  if (body.ageGroup !== undefined) {
+    if (!AGE_GROUPS.includes(body.ageGroup)) throw validationError('ageGroup', '年代が正しくありません')
+    out.ageGroup = body.ageGroup
+  }
+  if (body.iconUrl !== undefined) {
+    out.iconUrl = parseImageUrl(body.iconUrl, PROFILE_IMAGE_PREFIX, 'iconUrl', 'アイコンのURLが正しくありません')
+  }
+  return out
 }
 
 function parseNumberField(field, raw, max, label) {
@@ -474,14 +523,14 @@ exports.handler = async (event) => {
 
   try {
     if (routeKey === 'GET /uploads/presigned-url') {
-      const folder = event.queryStringParameters?.folder ?? 'posts'
-      const contentType = event.queryStringParameters?.contentType ?? 'image/jpeg'
-      const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : contentType.includes('webp') ? 'webp' : 'jpg'
+      const { folder, contentType, size, ext } = parseUploadQuery(event.queryStringParameters ?? {})
       const filename = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      // content-type と content-length を署名対象にし、申告と違う種類・サイズのPUTをS3に拒否させる
+      // （署名付きPUTだけではサイズを制限できないため。presigner は既定で content-type を署名しない）
       const uploadUrl = await getSignedUrl(
         s3Client,
-        new PutObjectCommand({ Bucket: UPLOAD_BUCKET, Key: filename, ContentType: contentType }),
-        { expiresIn: 300 }
+        new PutObjectCommand({ Bucket: UPLOAD_BUCKET, Key: filename, ContentType: contentType, ContentLength: size }),
+        { expiresIn: 300, signableHeaders: new Set(['content-type', 'content-length']) }
       )
       const imageUrl = `${UPLOAD_URL_BASE}${filename}`
       return ok({ uploadUrl, imageUrl })
@@ -704,11 +753,11 @@ exports.handler = async (event) => {
     }
 
     if (routeKey === 'PUT /me') {
+      const fields = parseProfileUpdate(body)
+      // 項目が無い状態で更新すると name/email の無い行ができるため、先に既定の行を用意する
+      await ensureProfile(userId, claims)
       const sets = ['updatedAt = :ua'], vals = { ':ua': new Date().toISOString() }
-      if (body.bio !== undefined) { sets.push('bio = :bio'); vals[':bio'] = body.bio }
-      if (body.gender !== undefined) { sets.push('gender = :gender'); vals[':gender'] = body.gender }
-      if (body.ageGroup !== undefined) { sets.push('ageGroup = :ageGroup'); vals[':ageGroup'] = body.ageGroup }
-      if (body.iconUrl !== undefined) { sets.push('iconUrl = :iconUrl'); vals[':iconUrl'] = body.iconUrl }
+      for (const [k, v] of Object.entries(fields)) { sets.push(`${k} = :${k}`); vals[`:${k}`] = v }
       const { Attributes: updated } = await ddb.send(new UpdateCommand({
         TableName: T.users, Key: { userId },
         UpdateExpression: `SET ${sets.join(', ')}`,

@@ -140,6 +140,7 @@ export default function MyPage() {
                 <textarea value={form.bio}
                   onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
                   rows={3}
+                  maxLength={200}
                   className="w-full bg-sp-card2 border-0 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-sp-muted"
                   placeholder="走ることが大好きです！" />
               </div>
